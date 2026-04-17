@@ -18,6 +18,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(exclude = "projects")
 public class Users {
     @Id
     @GeneratedValue(generator = "UUID")

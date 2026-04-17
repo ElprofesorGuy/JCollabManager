@@ -42,7 +42,7 @@ public class Project {
     @JoinColumn(name = "owner_id", columnDefinition = "uuid")
     private Users owner;
 
-    @OneToMany(mappedBy = "project")
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Task> tasks = new HashSet<>();
 
     @ManyToMany
