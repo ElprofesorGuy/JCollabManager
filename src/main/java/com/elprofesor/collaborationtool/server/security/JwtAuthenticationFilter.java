@@ -45,11 +45,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 2. Extraire le token
         String token = authHeader.substring(7);
+        System.out.println("--- DEBUG FILTRE ---");
+        System.out.println("Token reçu : " + token);
 
         // 3. Valider et authentifier
         if (jwtUtil.validateToken(token)) {
             String username = jwtUtil.extractUsername(token);
+            System.out.println("Username extrait : " + username); // SI ICI C'EST ADMIN, LE BUG EST DANS JWTUTIL OU LE TOKEN LUI-MÊME
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            System.out.println("UserDetails chargé : " + userDetails.getUsername()); // SI ICI C'EST DIFFERENT DE USERNAME, LE BUG EST DANS USERDETAILSSERVICE
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
