@@ -3,7 +3,6 @@ package com.elprofesor.collaborationtool.server.bootstrap;
 import com.elprofesor.collaborationtool.server.entities.Project;
 import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.entities.Users;
-import com.elprofesor.collaborationtool.server.models.ProjectDTO;
 import com.elprofesor.collaborationtool.server.models.Role;
 import com.elprofesor.collaborationtool.server.models.Status;
 import com.elprofesor.collaborationtool.server.repositories.*;
@@ -16,7 +15,6 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -34,11 +32,11 @@ public class BootstrapData implements CommandLineRunner {
     }
 
     private void loadTaskData(){
-        Users user1 = userRepository.findUsersByUsername("Le natif");
-        Users user2 = userRepository.findUsersByUsername("Le monstre");
-        Users user3 = userRepository.findUsersByUsername("Charlie");
-        Users user4 = userRepository.findUsersByUsername("Bobby");
-        Users user5 = userRepository.findUsersByUsername("Diana");
+        Users user1 = userRepository.findByUsername("Le natif");
+        Users user2 = userRepository.findByUsername("Le monstre");
+        Users user3 = userRepository.findByUsername("Charlie");
+        Users user4 = userRepository.findByUsername("Bobby");
+        Users user5 = userRepository.findByUsername("Diana");
 
         Project p1 = projectRepository.findByTitleContainingIgnoreCase("Meloaude");
         Project p2 = projectRepository.findByTitleContainingIgnoreCase("Wylov");
@@ -124,11 +122,11 @@ public class BootstrapData implements CommandLineRunner {
     }
 
     private void loadProjectData(){
-        Users user1 = userRepository.findUsersByUsername("Le natif");
-        Users user2 = userRepository.findUsersByUsername("Le monstre");
-        Users user3 = userRepository.findUsersByUsername("Charlie");
-        Users user4 = userRepository.findUsersByUsername("Bobby");
-        Users user5 = userRepository.findUsersByUsername("Diana");
+        Users user1 = userRepository.findByUsername("Le natif");
+        Users user2 = userRepository.findByUsername("Le monstre");
+        Users user3 = userRepository.findByUsername("Charlie");
+        Users user4 = userRepository.findByUsername("Bobby");
+        Users user5 = userRepository.findByUsername("Diana");
         if(projectRepository.count() == 0){
             Project project1 = Project.builder()
                     .title("Meloaude")
