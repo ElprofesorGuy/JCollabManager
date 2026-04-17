@@ -21,12 +21,14 @@ public class ProjectController {
     private final String PROJECT_PATH_ID = PROJECT_PATH + "/{projectId}";
 
     @GetMapping(PROJECT_PATH)
-    @PreAuthorize("hasRole('ADMIN')")
+    //@PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public List<ProjectDTO> displayListProject(){
         return projectService.listProjects();
     }
 
     @GetMapping(PROJECT_PATH_ID)
+    @PreAuthorize("isAuthenticated()")
     public ProjectDTO getProjectById(@PathVariable("projectId")UUID projectId){
         return projectService.getProjectById(projectId).orElseThrow(NotFoundException::new);
     }
@@ -41,6 +43,7 @@ public class ProjectController {
     }
 
     @PutMapping(PROJECT_PATH_ID)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity updateProject(@PathVariable("projectId") UUID projectId, @RequestBody ProjectDTO projectUpToDate){
         projectService.updateProjectById(projectId, projectUpToDate);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
@@ -50,6 +53,8 @@ public class ProjectController {
     @PreAuthorize("@projectService.isProjectOwner(#projectId, authentication.name)")
     public ResponseEntity deleteProjectById(@PathVariable("projectId") UUID projectId){
         projectService.deleteProject(projectId);
+        System.out.println("Id du projet à supprimer : " + projectId);
+        //System.out.println("Principal Name : " + authentication.name);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 }

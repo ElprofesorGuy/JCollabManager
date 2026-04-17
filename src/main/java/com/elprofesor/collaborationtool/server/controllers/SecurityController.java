@@ -24,10 +24,10 @@ public class SecurityController {
     }
 
     // Un utilisateur ne peut supprimer un projet que s'il en est le créateur
-    @DeleteMapping("/{id}")
+    /*@DeleteMapping("/{id}")
     @PreAuthorize("@projectService.isProjectOwner(#id, authentication.name)")
     public ResponseEntity<Void> deleteProject(@PathVariable UUID id) {
         projectService.deleteProject(id);
         return ResponseEntity.noContent().build();
-    }
+    }*/
 }

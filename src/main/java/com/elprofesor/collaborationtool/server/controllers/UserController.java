@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,16 +23,19 @@ public class UserController {
     private final String USER_PATH_ID = "/api/v1/user/{userId}";
 
     @GetMapping(USER_PATH)
+    @PreAuthorize("isAuthenticated()")
     public List<UserResponseDTO> getListUsers(){
         return userService.getUsersList();
     }
 
     @GetMapping(USER_PATH_ID)
+    @PreAuthorize("isAuthenticated()")
     public UserResponseDTO getSpecificUser(@PathVariable UUID userId){
         return userService.getUser(userId).orElseThrow(NotFoundException::new);
     }
 
     @PostMapping(USER_PATH)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity saveNewUser(@RequestBody UserRequestDTO userRequestDTO){
         UserRequestDTO newUser = userService.saveNewUser(userRequestDTO);
         HttpHeaders header = new HttpHeaders();
@@ -40,6 +44,7 @@ public class UserController {
     }
 
     @DeleteMapping(USER_PATH_ID)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity deleteUser(@PathVariable("userId") UUID userId){
         if(!userService.deleteUser(userId)){
             throw new NotFoundException();
