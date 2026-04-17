@@ -31,20 +31,20 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         userRepository.save(user);
 
-        String token = jwtUtil.generateToken(user.getEmail());
+        String token = jwtUtil.generateToken(user.getUsername()); //Ligne modifiée
         return new AuthResponseDTO(token, userMapper.userToUserResponseDto(user));
     }
 
     // Login
     public AuthResponseDTO login(LoginRequestDTO dto) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword())
+                new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword())  //Ligne modifié
         );
 
-        Users user = userRepository.findByEmail(dto.getEmail());
+        Users user = userRepository.findByUsername(dto.getUsername());  //Ligne modifiée
                 //.orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
-        String token = jwtUtil.generateToken(user.getEmail());
+        String token = jwtUtil.generateToken(user.getUsername());// Ligne modifiée
         return new AuthResponseDTO(token, userMapper.userToUserResponseDto(user));
     }
 }

@@ -17,7 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-@Service
+@Service("projectService")
 @RequiredArgsConstructor
 public class ProjectServiceJPA implements ProjectService {
 
@@ -73,9 +73,11 @@ public class ProjectServiceJPA implements ProjectService {
     }
 
     @Override
-    public boolean isProjectOwner(UUID projectId, String email) {
+    public boolean isProjectOwner(UUID projectId, String name) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new  NotFoundException("Projet non trouvé"));
-        return project.getOwner().getEmail().equals(email);
+        System.out.println("Owner du projet trouvé : " + project.getOwner().getUsername());
+        System.out.println("Owner du projet attendu : " + name);
+        return project.getOwner().getUsername().equals(name);
     }
 }
