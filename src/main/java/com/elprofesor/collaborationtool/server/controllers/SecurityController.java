@@ -1,6 +1,7 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
-import com.elprofesor.collaborationtool.server.models.ProjectDTO;
+import com.elprofesor.collaborationtool.server.models.ProjectRequestDTO;
+import com.elprofesor.collaborationtool.server.models.ProjectResponseDTO;
 import com.elprofesor.collaborationtool.server.services.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -8,7 +9,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RequiredArgsConstructor
 @RestController
@@ -19,7 +19,7 @@ public class SecurityController {
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<ProjectDTO>> getAllProjectsForAdmin() {
+    public ResponseEntity<List<ProjectResponseDTO>> getAllProjectsForAdmin() {
         return ResponseEntity.ok(projectService.listProjects());
     }
 

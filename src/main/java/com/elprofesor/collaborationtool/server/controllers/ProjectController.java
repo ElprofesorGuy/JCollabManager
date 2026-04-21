@@ -1,10 +1,12 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
-import com.elprofesor.collaborationtool.server.models.ProjectDTO;
+import com.elprofesor.collaborationtool.server.models.ProjectRequestDTO;
+import com.elprofesor.collaborationtool.server.models.ProjectResponseDTO;
 import com.elprofesor.collaborationtool.server.services.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -13,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -32,7 +35,7 @@ public class ProjectController {
         @ApiResponse(responseCode = "200", description = "Affichage de la liste des projets reussi"),
         @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter")
     })
-    public List<ProjectDTO> displayListProject(){
+    public List<ProjectResponseDTO> displayListProject(){
         return projectService.listProjects();
     }
 
@@ -44,7 +47,7 @@ public class ProjectController {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, opération non permise"),
             @ApiResponse(responseCode = "200", description = "Projet trouvé.")
     })
-    public ProjectDTO getProjectById(@PathVariable("projectId")UUID projectId){
+    public ProjectResponseDTO getProjectById(@PathVariable("projectId")UUID projectId){
         return projectService.getProjectById(projectId).orElseThrow(NotFoundException::new);
     }
 
@@ -56,10 +59,10 @@ public class ProjectController {
             @ApiResponse(responseCode = "201", description = "Projet créé avec succès"),
             @ApiResponse(responseCode = "500", description = "Verrouillage optimiste : Le champ id doit être vide/supprimez-le.")
     })
-    public ResponseEntity saveNewProject(@RequestBody ProjectDTO projectDTO){
-        ProjectDTO newProject = projectService.saveNewProject(projectDTO);
+    public ResponseEntity saveNewProject(@RequestBody ProjectRequestDTO projectRequestDTO){
+        ProjectResponseDTO newProject = projectService.saveNewProject(projectRequestDTO);
         HttpHeaders headers = new HttpHeaders();
-        headers.add("Location", PROJECT_PATH + "/" + projectDTO.getId());
+        headers.add("Location", PROJECT_PATH + "/" + newProject.getId());
         return new ResponseEntity(HttpStatus.CREATED);
     }
 
@@ -71,7 +74,7 @@ public class ProjectController {
             @ApiResponse(responseCode = "204", description = "Informations de projet mises à jour"),
             @ApiResponse(responseCode = "404", description = "Projet inexistant, vérifiez l'identifiant du projet")
     })
-    public ResponseEntity updateProject(@PathVariable("projectId") UUID projectId, @RequestBody ProjectDTO projectUpToDate){
+    public ResponseEntity updateProject(@PathVariable("projectId") UUID projectId, @RequestBody ProjectRequestDTO projectUpToDate){
         projectService.updateProjectById(projectId, projectUpToDate);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
@@ -81,7 +84,7 @@ public class ProjectController {
     @Operation(summary = "Suppression d'un projet", description = "Suppression d'un projet en fournissant son identifiant.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "404", description = "Ce projet a déjà été supprimé ou il est inexistant."),
-            @ApiResponse(responseCode = "200", description = "Projet supprimé avec succès"),
+            @ApiResponse(responseCode = "204", description = "Projet supprimé avec succès"),
             @ApiResponse(responseCode = "403", description = "Utilisateur non authetifié.")
     })
     public ResponseEntity deleteProjectById(@PathVariable("projectId") UUID projectId){
@@ -89,5 +92,19 @@ public class ProjectController {
         System.out.println("Id du projet à supprimer : " + projectId);
         //System.out.println("Principal Name : " + authentication.name);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
+    }
+
+    @PostMapping("/projects/{projectId}/members")
+    public ResponseEntity<ProjectResponseDTO> addMembers(@PathVariable UUID projectId, @RequestBody Set<@Email String> memberEmails) {
+
+        return ResponseEntity.ok(projectService.addMembers(projectId, memberEmails));
+    }
+
+    @DeleteMapping("/projects/{projectId}/members")
+    public ResponseEntity<ProjectResponseDTO> removeMembers(
+            @PathVariable UUID projectId,
+            @RequestBody Set<@Email String> memberEmails) {
+
+        return ResponseEntity.ok(projectService.removeMembers(projectId, memberEmails));
     }
 }
