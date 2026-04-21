@@ -40,6 +40,7 @@ public class Project {
 
     @ManyToOne
     @JoinColumn(name = "owner_id", columnDefinition = "uuid")
+    @NotNull
     private Users owner;
 
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
