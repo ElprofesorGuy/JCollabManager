@@ -12,6 +12,6 @@ public interface UserService {
     Optional<UserResponseDTO> getUser(UUID id);
     Boolean deleteUser(UUID userId);
     UserRequestDTO saveNewUser(UserRequestDTO newUser);
-    Optional<UserResponseDTO> updateUser(UserResponseDTO existingUser, UUID userId);
+    Optional<UserResponseDTO> updateUser(UserRequestDTO existingUser, UUID userId);
     List<UserResponseDTO> getUsersList();
 }

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,15 +42,20 @@ public class UserServiceJPA implements UserService{
     }
 
     @Override
-    public Optional<UserResponseDTO> updateUser(UserResponseDTO existingUser, UUID userId) {
-        userRepository.findById(userId).map(foundUser -> {
+    public Optional<UserResponseDTO> updateUser(UserRequestDTO existingUser, UUID userId) {
+        UserRequestDTO dto = UserRequestDTO.builder().build();
+        AtomicReference<Optional<UserResponseDTO>> atomicReference = new AtomicReference<>();
+        userRepository.findById(userId).ifPresentOrElse(foundUser -> {
+            System.out.println("Id trouvé : " + foundUser.getId());
             foundUser.setEmail(existingUser.getEmail());
             foundUser.setRole(existingUser.getRole());
             foundUser.setUsername(existingUser.getUsername());
-            Users saveUser = userRepository.save(foundUser);
-            return saveUser;
+            userRepository.save(foundUser);
+            atomicReference.set(Optional.of(userMapper.userToUserResponseDto(userRepository.save(foundUser))));
+        }, ()->{
+            atomicReference.set(Optional.empty());
         });
-        return Optional.empty();
+        return atomicReference.get();
     }
 
     @Override

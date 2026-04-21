@@ -2,15 +2,12 @@ package com.elprofesor.collaborationtool.server.services;
 
 import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
 import com.elprofesor.collaborationtool.server.entities.Project;
-import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.mapper.ProjectMapper;
-import com.elprofesor.collaborationtool.server.models.ProjectDTO;
+import com.elprofesor.collaborationtool.server.models.ProjectRequestDTO;
 import com.elprofesor.collaborationtool.server.repositories.ProjectRepository;
-import com.elprofesor.collaborationtool.server.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import javax.swing.text.html.Option;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,7 +22,7 @@ public class ProjectServiceJPA implements ProjectService {
     private final ProjectRepository projectRepository;
 
     @Override
-    public List<ProjectDTO> listProjects() {
+    public List<ProjectRequestDTO> listProjects() {
         return projectRepository.findAll()
                 .stream()
                 .map(projectMapper::projectToProjectDto)
@@ -34,22 +31,22 @@ public class ProjectServiceJPA implements ProjectService {
 
 
     @Override
-    public Optional<ProjectDTO> getProjectById(UUID id) {
+    public Optional<ProjectRequestDTO> getProjectById(UUID id) {
         return Optional.of(projectMapper.projectToProjectDto(projectRepository.findById(id).orElseThrow(NotFoundException::new)));
     }
 
     @Override
-    public ProjectDTO saveNewProject(ProjectDTO projectDTO) {
-        return projectMapper.projectToProjectDto(projectRepository.save(projectMapper.projectDtoToProject(projectDTO)));
+    public ProjectRequestDTO saveNewProject(ProjectRequestDTO projectRequestDTO) {
+        return projectMapper.projectToProjectDto(projectRepository.save(projectMapper.projectDtoToProject(projectRequestDTO)));
     }
 
     @Override
-    public Optional<ProjectDTO> updateProjectById(UUID id, ProjectDTO projectDTO) {
-        AtomicReference<Optional<ProjectDTO>> atomicReference = new AtomicReference<>();
+    public Optional<ProjectRequestDTO> updateProjectById(UUID id, ProjectRequestDTO projectRequestDTO) {
+        AtomicReference<Optional<ProjectRequestDTO>> atomicReference = new AtomicReference<>();
         projectRepository.findById(id).ifPresentOrElse(foundProject -> {
-            foundProject.setTitle(projectDTO.getTitle());
-            foundProject.setDescription(projectDTO.getDescription());
-            foundProject.setCreation_date(projectDTO.getCreation_date());
+            foundProject.setTitle(projectRequestDTO.getTitle());
+            foundProject.setDescription(projectRequestDTO.getDescription());
+            foundProject.setCreation_date(projectRequestDTO.getCreation_date());
             Project savedProject = projectRepository.save(foundProject);
             atomicReference.set(Optional.of(projectMapper.projectToProjectDto(savedProject)));
         }, () -> {
