@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Component
@@ -32,11 +33,11 @@ public class BootstrapData implements CommandLineRunner {
     }
 
     private void loadTaskData(){
-        Users user1 = userRepository.findByUsername("Le natif");
-        Users user2 = userRepository.findByUsername("Le monstre");
-        Users user3 = userRepository.findByUsername("Charlie");
-        Users user4 = userRepository.findByUsername("Bobby");
-        Users user5 = userRepository.findByUsername("Diana");
+        Optional<Users> user1 = userRepository.findByUsername("Le natif");
+        Optional<Users> user2 = userRepository.findByUsername("Le monstre");
+        Optional<Users> user3 = userRepository.findByUsername("Charlie");
+        Optional<Users> user4 = userRepository.findByUsername("Bobby");
+        Optional<Users> user5 = userRepository.findByUsername("Diana");
 
         Project p1 = projectRepository.findByTitleContainingIgnoreCase("Meloaude");
         Project p2 = projectRepository.findByTitleContainingIgnoreCase("Wylov");
@@ -48,7 +49,7 @@ public class BootstrapData implements CommandLineRunner {
                     .description("Créer les maquettes sur Figma")
                     .creation_date(LocalDate.now())
                     .project(p1)
-                    .assign_to(user3)
+                    .assign_to(user3.get())
                     .build();
 
             Task task2 = Task.builder()
@@ -57,7 +58,7 @@ public class BootstrapData implements CommandLineRunner {
                     .title("Intégration HTML/CSS")
                     .description("Intégrer les maquettes validées")
                     .project(p1)
-                    .assign_to(user4)
+                    .assign_to(user4.get())
                     .build();
             Task task3 = Task.builder()
                     .status(Status.TO_DO)
@@ -65,7 +66,7 @@ public class BootstrapData implements CommandLineRunner {
                     .title("Optimisation SEO")
                     .description("Mettre en place les balises meta et sitemap")
                     .project(p1)
-                    .assign_to(user3)
+                    .assign_to(user3.get())
                     .build();
             Task task4 = Task.builder()
                     .creation_date(LocalDate.now())
@@ -73,7 +74,7 @@ public class BootstrapData implements CommandLineRunner {
                     .description("Tester sur Chrome, Firefox, Safari")
                     .status(Status.TO_DO)
                     .project(p2)
-                    .assign_to(user5)
+                    .assign_to(user5.get())
                     .build();
             Task task5 = Task.builder()
                     .title("Cahier de charges")
@@ -81,7 +82,7 @@ public class BootstrapData implements CommandLineRunner {
                     .creation_date(LocalDate.now())
                     .status(Status.END)
                     .project(p2)
-                    .assign_to(user5)
+                    .assign_to(user5.get())
                     .build();
             Task task6 = Task.builder()
                     .title("Setup React Native")
@@ -89,7 +90,7 @@ public class BootstrapData implements CommandLineRunner {
                     .creation_date(LocalDate.now())
                     .status(Status.NOT_FINISH)
                     .project(p2)
-                    .assign_to(user3)
+                    .assign_to(user3.get())
                     .build();
             Task task7 = Task.builder()
                     .title("Ecran authentification")
@@ -97,7 +98,7 @@ public class BootstrapData implements CommandLineRunner {
                     .creation_date(LocalDate.now())
                     .status(Status.END)
                     .project(p3)
-                    .assign_to(user2)
+                    .assign_to(user2.get())
                     .build();
             Task task8 = Task.builder()
                     .title("Intégration API REST")
@@ -105,7 +106,7 @@ public class BootstrapData implements CommandLineRunner {
                     .creation_date(LocalDate.now())
                     .status(Status.TO_DO)
                     .project(p3)
-                    .assign_to(user4)
+                    .assign_to(user4.get())
                     .build();
             Task task9 = Task.builder()
                     .creation_date(LocalDate.now())
@@ -113,7 +114,7 @@ public class BootstrapData implements CommandLineRunner {
                     .description("Configurer les services EC2, S3, RDS")
                     .status(Status.TO_DO)
                     .project(p3)
-                    .assign_to(user2)
+                    .assign_to(user2.get())
                     .build();
 
             taskRepository.saveAll(List.of(task1, task2, task3, task4, task5, task6, task7, task8, task9));
@@ -122,44 +123,44 @@ public class BootstrapData implements CommandLineRunner {
     }
 
     private void loadProjectData(){
-        Users user1 = userRepository.findByUsername("Le natif");
-        Users user2 = userRepository.findByUsername("Le monstre");
-        Users user3 = userRepository.findByUsername("Charlie");
-        Users user4 = userRepository.findByUsername("Bobby");
-        Users user5 = userRepository.findByUsername("Diana");
+        Optional<Users> user1 = userRepository.findByUsername("Le natif");
+        Optional<Users> user2 = userRepository.findByUsername("Le monstre");
+        Optional<Users> user3 = userRepository.findByUsername("Charlie");
+        Optional<Users> user4 = userRepository.findByUsername("Bobby");
+        Optional<Users> user5 = userRepository.findByUsername("Diana");
         if(projectRepository.count() == 0){
             Project project1 = Project.builder()
                     .title("Meloaude")
                     .description("Application de gestion de transactions financières")
                     .creation_date(LocalDate.now())
-                    .owner(user1)
+                    .owner(user1.get())
                     .build();
 
             Project project2 = Project.builder()
                     .title("Wylov Pro")
                     .creation_date(LocalDate.now())
                     .description("Application de gestion des stocks")
-                    .owner(user2)
+                    .owner(user2.get())
                     .build();
 
             Project project3 = Project.builder()
                     .title("Migration Cloud")
                     .description("Migration de l'infrastructure vers AWS")
                     .creation_date(LocalDate.now())
-                    .owner(user1)
+                    .owner(user1.get())
                     .build();
             Set<Users> members1 = new HashSet<>();
-            members1.add(user1);
-            members1.add(user3);
-            members1.add(user4);
+            members1.add(user1.get());
+            members1.add(user3.get());
+            members1.add(user4.get());
             Set<Users> members2 = new HashSet<>();
-            members2.add(user2);
-            members2.add(user3);
-            members2.add(user5);
+            members2.add(user2.get());
+            members2.add(user3.get());
+            members2.add(user5.get());
             Set<Users> members3 = new HashSet<>();
-            members3.add(user1);
-            members3.add(user2);
-            members3.add(user5);
+            members3.add(user1.get());
+            members3.add(user2.get());
+            members3.add(user5.get());
             project1.setMembers(members1);
             project2.setMembers(members2);
             project3.setMembers(members3);

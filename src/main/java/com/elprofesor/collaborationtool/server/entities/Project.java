@@ -52,13 +52,22 @@ public class Project {
     inverseJoinColumns = @JoinColumn(name = "user_id", columnDefinition = "uuid"))
     private Set<Users> members = new HashSet<>();
 
-    public void addMember(Users member){
-        this.members.add(member);
-        member.getProjects().add(this);
+    public void addMember(Users user) {
+        if (this.members == null) {
+            this.members = new HashSet<>();
+        }
+        this.members.add(user);
     }
 
     public void removeMember(Users member){
         this.members.remove(member);
         member.getProjects().remove(this);
+    }
+
+    public void addTask(Task task){
+        if(this.tasks == null){
+            this.tasks = new HashSet<>();
+        }
+        this.tasks.add(task);
     }
 }
