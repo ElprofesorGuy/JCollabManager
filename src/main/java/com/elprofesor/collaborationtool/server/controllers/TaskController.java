@@ -1,6 +1,7 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
-import com.elprofesor.collaborationtool.server.models.TaskDTO;
+import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
+import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
 import com.elprofesor.collaborationtool.server.services.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -30,7 +31,7 @@ public class TaskController {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter"),
             @ApiResponse(responseCode = "200", description = "Liste des tâches chargée avec succès")
     })
-    public List<TaskDTO> displayListOfTasks(){
+    public List<TaskResponseDTO> displayListOfTasks(){
         return taskService.listTask();
     }
 
@@ -42,7 +43,7 @@ public class TaskController {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentigié, veuillez d'abord vous connecter"),
             @ApiResponse(responseCode = "200", description = "Tâche trouvée")
     })
-    public TaskDTO getTask(@PathVariable("taskId") UUID taskId){
+    public TaskResponseDTO getTask(@PathVariable("taskId") UUID taskId){
         return taskService.getTask(taskId).orElseThrow(NotFoundException::new);
     }
 
@@ -68,8 +69,8 @@ public class TaskController {
             @ApiResponse(responseCode = "201", description = "Tâche créée avec succès"),
             @ApiResponse(responseCode = "500", description = "Verrouillage optimiste : Le champ id doit être vide/supprimez-le.")
     })
-    public ResponseEntity saveNewTask(@RequestBody TaskDTO taskDTO){
-        TaskDTO newTask = taskService.saveNewTask(taskDTO);
+    public ResponseEntity saveNewTask(@RequestBody TaskRequestDTO taskRequestDTO){
+        TaskResponseDTO newTask = taskService.saveNewTask(taskRequestDTO);
         HttpHeaders header = new HttpHeaders();
         header.add("Location", "/api/v1/task/" + newTask.getId());
         return new ResponseEntity(HttpStatus.CREATED);
@@ -82,8 +83,8 @@ public class TaskController {
             @ApiResponse(responseCode = "204", description = "Informations de la tâche  mises à jour"),
             @ApiResponse(responseCode = "404", description = "Tâche inexistante, vérifiez l'identifiant de la tâche")
     })
-    public ResponseEntity updateExistingTask(@PathVariable UUID taskId, @RequestBody TaskDTO taskDTO){
-        if(taskService.updateTask(taskId, taskDTO).isEmpty()){
+    public ResponseEntity updateExistingTask(@PathVariable UUID taskId, @RequestBody TaskRequestDTO taskRequestDTO){
+        if(taskService.updateTask(taskId, taskRequestDTO).isEmpty()){
             throw new NotFoundException();
         }
         return new ResponseEntity(HttpStatus.NO_CONTENT);

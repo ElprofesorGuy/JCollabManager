@@ -1,7 +1,10 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
+import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.models.ProjectRequestDTO;
 import com.elprofesor.collaborationtool.server.models.ProjectResponseDTO;
+import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
+import com.elprofesor.collaborationtool.server.repositories.UserRepository;
 import com.elprofesor.collaborationtool.server.services.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -12,6 +15,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +29,7 @@ import java.util.UUID;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final UserRepository userRepository;
     private final String PROJECT_PATH = "/api/v1/project";
     private final String PROJECT_PATH_ID = PROJECT_PATH + "/{projectId}";
 
@@ -57,7 +63,7 @@ public class ProjectController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, opération non permise"),
             @ApiResponse(responseCode = "201", description = "Projet créé avec succès"),
-            @ApiResponse(responseCode = "500", description = "Verrouillage optimiste : Le champ id doit être vide/supprimez-le.")
+            @ApiResponse(responseCode = "500", description = "Verrouillage optimiste : Le champ id doit être vide/supprimez-le ou email incorrecte, ne correspond à aucun utilisateur.")
     })
     public ResponseEntity saveNewProject(@RequestBody ProjectRequestDTO projectRequestDTO){
         ProjectResponseDTO newProject = projectService.saveNewProject(projectRequestDTO);
@@ -95,16 +101,42 @@ public class ProjectController {
     }
 
     @PostMapping("/projects/{projectId}/members")
-    public ResponseEntity<ProjectResponseDTO> addMembers(@PathVariable UUID projectId, @RequestBody Set<@Email String> memberEmails) {
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Ajout des membres", description = "Ajouter les membres de l'équipe de projet, le owner est d'office un membre")
+    public ResponseEntity<ProjectResponseDTO> addMembers(@PathVariable("projectId") UUID projectId,
+                                                         @RequestBody Set<@Email String> memberEmails,
+                                                         @AuthenticationPrincipal UserDetails userDetails) {
 
-        return ResponseEntity.ok(projectService.addMembers(projectId, memberEmails));
+        Users currentUser = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow();
+        return ResponseEntity.ok(projectService.addMembers(projectId, memberEmails, currentUser));
     }
 
     @DeleteMapping("/projects/{projectId}/members")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Suppression des membres", description = "Exclure ou supprimer un membre de l'équipe, le owner ne pouvant être supprimé par lui même")
     public ResponseEntity<ProjectResponseDTO> removeMembers(
             @PathVariable UUID projectId,
-            @RequestBody Set<@Email String> memberEmails) {
+            @RequestBody Set<@Email String> memberEmails,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Users currentUser = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow();
 
-        return ResponseEntity.ok(projectService.removeMembers(projectId, memberEmails));
+        return ResponseEntity.ok(projectService.removeMembers(projectId, memberEmails, currentUser));
+    }
+
+    @GetMapping("/projects/{projectId}/members")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Affichage de la liste des membres", description = "Afficher l'ensemble des personnes travaillant sur un projet spécifique")
+    public Set<Users> displayListofMembers(@PathVariable("projectId")UUID projectId){
+        return projectService.displayMembersOfaProject(projectId);
+    }
+
+    @PostMapping("/projects/{projectId}/tasks")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Ajout d'une tâche", description = "Ajouter une tâche à un projet")
+    public ResponseEntity<TaskResponseDTO> addTasks(@PathVariable("projectId") UUID projectId,
+                                                    @RequestBody String taskTitle){
+        return ResponseEntity.ok(projectService.addTaskToProject(projectId, taskTitle));
     }
 }
