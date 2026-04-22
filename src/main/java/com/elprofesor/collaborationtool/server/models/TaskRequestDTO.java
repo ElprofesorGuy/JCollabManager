@@ -3,34 +3,18 @@ package com.elprofesor.collaborationtool.server.models;
 import lombok.Builder;
 
 import java.time.LocalDate;
+import java.util.Objects;
 import java.util.UUID;
 
 
 @Builder
-public class TaskDTO {
-    private UUID id;
-    private UUID project_id;
+public class TaskRequestDTO {
+    private String projectName;
     private String title;
     private String description;
     private Status status;
-    private UserResponseDTO assign_to;
-    private LocalDate creation_date;
+    private String assign_to;
 
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getProject_id() {
-        return project_id;
-    }
-
-    public void setProject_id(UUID project_id) {
-        this.project_id = project_id;
-    }
 
     public String getTitle() {
         return title;
@@ -56,51 +40,47 @@ public class TaskDTO {
         this.status = status;
     }
 
-    public UserResponseDTO getAssign_to() {
+    public String getAssign_to() {
         return assign_to;
     }
 
-    public void setAssign_to(UserResponseDTO assign_to) {
+    public String getProjectName() {
+        return projectName;
+    }
+
+    public void setProjectName(String projectName) {
+        this.projectName = projectName;
+    }
+
+    public void setAssign_to(String assign_to) {
         this.assign_to = assign_to;
-    }
-
-    public LocalDate getCreation_date() {
-        return creation_date;
-    }
-
-    public void setCreation_date(LocalDate creation_date) {
-        this.creation_date = creation_date;
     }
 
     @Override
     public final boolean equals(Object o) {
-        if (!(o instanceof TaskDTO taskDTO)) return false;
+        if (!(o instanceof TaskRequestDTO that)) return false;
 
-        return getId().equals(taskDTO.getId()) && getProject_id().equals(taskDTO.getProject_id()) && getTitle().equals(taskDTO.getTitle()) && getDescription().equals(taskDTO.getDescription()) && getStatus().equals(taskDTO.getStatus()) && getAssign_to().equals(taskDTO.getAssign_to()) && getCreation_date().equals(taskDTO.getCreation_date());
+        return Objects.equals(projectName, that.projectName) && Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && getStatus() == that.getStatus() && Objects.equals(getAssign_to(), that.getAssign_to());
     }
 
     @Override
     public int hashCode() {
-        int result = getId().hashCode();
-        result = 31 * result + getProject_id().hashCode();
-        result = 31 * result + getTitle().hashCode();
-        result = 31 * result + getDescription().hashCode();
-        result = 31 * result + getStatus().hashCode();
-        result = 31 * result + getAssign_to().hashCode();
-        result = 31 * result + getCreation_date().hashCode();
+        int result = Objects.hashCode(projectName);
+        result = 31 * result + Objects.hashCode(getTitle());
+        result = 31 * result + Objects.hashCode(getDescription());
+        result = 31 * result + Objects.hashCode(getStatus());
+        result = 31 * result + Objects.hashCode(getAssign_to());
         return result;
     }
 
     @Override
     public String toString() {
-        return "TaskDTO{" +
-                "id=" + id +
-                ", project_id=" + project_id +
+        return "TaskRequestDTO{" +
+                "projectName='" + projectName + '\'' +
                 ", title='" + title + '\'' +
                 ", description='" + description + '\'' +
-                ", status='" + status + '\'' +
+                ", status=" + status +
                 ", assign_to='" + assign_to + '\'' +
-                ", creation_date=" + creation_date +
                 '}';
     }
 }
