@@ -4,8 +4,12 @@ import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
 import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.mapper.TaskMapper;
 import com.elprofesor.collaborationtool.server.mapper.UserMapper;
-import com.elprofesor.collaborationtool.server.models.TaskDTO;
+import com.elprofesor.collaborationtool.server.models.ProjectRequestDTO;
+import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
+import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
+import com.elprofesor.collaborationtool.server.repositories.ProjectRepository;
 import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
+import com.elprofesor.collaborationtool.server.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,38 +26,45 @@ public class TaskServiceJPA implements TaskService {
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
     private final UserMapper userMapper;
+    private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
 
     @Override
-    public List<TaskDTO> listTask() {
+    public List<TaskResponseDTO> listTask() {
         return taskRepository.findAll()
                 .stream()
-                .map(taskMapper::taskToTaskDto)
+                .map(taskMapper::taskToTaskResponseDto)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public Optional<TaskDTO> getTask(UUID id) {
-        return Optional.ofNullable(taskMapper.taskToTaskDto(taskRepository.findById(id).orElseThrow(NotFoundException::new)));
+    public Optional<TaskResponseDTO> getTask(UUID id) {
+        return Optional.ofNullable(taskMapper.taskToTaskResponseDto(taskRepository.findById(id).orElseThrow(NotFoundException::new)));
     }
 
     @Override
-    public TaskDTO saveNewTask(TaskDTO taskDTO) {
-        return taskMapper.taskToTaskDto(taskRepository.save(taskMapper.taskDtoToTask(taskDTO)));
+    public TaskResponseDTO saveNewTask(TaskRequestDTO taskRequestDTO) {
+        Task taskTosave = taskMapper.taskRequestDtoToTask(taskRequestDTO);
+        taskTosave.setProject(projectRepository.findByTitleContainingIgnoreCase(taskRequestDTO.getProjectName()));
+        taskTosave.setAssign_to(userRepository.findByUsername(taskRequestDTO.getAssign_to()).get());
+        return taskMapper.taskToTaskResponseDto(taskRepository.save(taskTosave));
     }
 
     @Override
-    public Optional<TaskDTO> updateTask(UUID id, TaskDTO taskDTO) {
+    public Optional<TaskRequestDTO> updateTask(UUID id, TaskRequestDTO taskRequestDTO) {
 
-        taskRepository.findById(id).map(foundTask -> {
-            foundTask.setTitle(taskDTO.getTitle());
-            foundTask.setStatus(taskDTO.getStatus());
-            foundTask.setDescription(taskDTO.getDescription());
-            foundTask.setAssign_to(userMapper.userResponseDtoToUser(taskDTO.getAssign_to()));
-            foundTask.setCreation_date(taskDTO.getCreation_date());
+        AtomicReference<Optional<TaskRequestDTO>> atomicReference = new AtomicReference<>();
+        taskRepository.findById(id).ifPresentOrElse(foundTask -> {
+            foundTask.setTitle(taskRequestDTO.getTitle());
+            foundTask.setStatus(taskRequestDTO.getStatus());
+            foundTask.setDescription(taskRequestDTO.getDescription());
+            foundTask.setAssign_to(userRepository.findByUsername(taskRequestDTO.getAssign_to()).get());
             Task savedTask = taskRepository.save(foundTask);
-            return savedTask;
+            atomicReference.set(Optional.of(taskMapper.taskToTaskRequestDto(savedTask)));
+        }, () -> {
+            atomicReference.set(Optional.empty());
         });
-        return Optional.empty();
+        return atomicReference.get();
     }
 
     @Override

@@ -2,14 +2,19 @@ package com.elprofesor.collaborationtool.server.services;
 
 import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
 import com.elprofesor.collaborationtool.server.entities.Project;
+import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.mapper.ProjectMapper;
+import com.elprofesor.collaborationtool.server.mapper.TaskMapper;
 import com.elprofesor.collaborationtool.server.models.ProjectRequestDTO;
 import com.elprofesor.collaborationtool.server.models.ProjectResponseDTO;
+import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
 import com.elprofesor.collaborationtool.server.repositories.ProjectRepository;
+import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
 import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -28,6 +33,8 @@ public class ProjectServiceJPA implements ProjectService {
     private final ProjectMapper projectMapper;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
+    private final TaskMapper taskMapper;
 
     @Override
     public List<ProjectResponseDTO> listProjects() {
@@ -91,11 +98,16 @@ public class ProjectServiceJPA implements ProjectService {
     }
 
     @Override
-    public ProjectResponseDTO addMembers(UUID projectId, Set<@Email String> memberEmails) {
+    public ProjectResponseDTO addMembers(UUID projectId, Set<@Email String> memberEmails, Users currentUser) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException(
                         "Projet introuvable : " + projectId
                 ));
+        if (!project.getOwner().equals(currentUser)) {
+            throw new AccessDeniedException(
+                    "Seul le owner peut ajouter des membres"
+            );
+        }
 
         // 2. Résoudre les emails en entités User
         Set<Users> newMembers = memberEmails.stream()
@@ -111,13 +123,19 @@ public class ProjectServiceJPA implements ProjectService {
     }
 
     @Override
-    public ProjectResponseDTO removeMembers(UUID projectId, Set<@Email String> memberEmails) {
+    public ProjectResponseDTO removeMembers(UUID projectId, Set<@Email String> memberEmails, Users currentUser) {
 
         // 1. Récupérer le projet
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException(
                         "Projet introuvable : " + projectId
                 ));
+
+        if (!project.getOwner().equals(currentUser)) {
+            throw new AccessDeniedException(
+                    "Seul le owner peut supprimer des membres"
+            );
+        }
 
         // 2. Résoudre les emails en entités User
         Set<Users> membersToRemove = memberEmails.stream()
@@ -139,4 +157,30 @@ public class ProjectServiceJPA implements ProjectService {
 
         return projectMapper.projectToProjectResponseDto(projectRepository.save(project));
     }
+
+    @Override
+    public Set<Users> displayMembersOfaProject(UUID projectId) {
+        Optional <Project> project = projectRepository.findById(projectId);
+        Set <Users> listOfMembers = project.get().getMembers();
+        return listOfMembers;
+    }
+
+    @Override
+    public TaskResponseDTO addTaskToProject(UUID projectId, String taskTitle) {
+        // 1. On récupère le projet
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new NotFoundException("Projet non trouvé"));
+
+        // 2. On transforme le DTO en entité Task
+        Optional<Task> task = taskRepository.findByTitleContainingIgnoreCase(taskTitle);
+
+        // 3. On utilise le helper pour faire le lien
+        project.addTask(task.get());
+
+        // 4. On sauvegarde le projet (les tâches suivront grâce au cascade=ALL)
+        projectRepository.save(project);
+
+        return taskMapper.taskToTaskResponseDto(task.get());
+    }
+
 }

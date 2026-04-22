@@ -41,10 +41,10 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword())  //Ligne modifié
         );
 
-        Users user = userRepository.findByUsername(dto.getUsername());  //Ligne modifiée
+        Optional<Users> user = userRepository.findByUsername(dto.getUsername());  //Ligne modifiée
                 //.orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
-        String token = jwtUtil.generateToken(user.getUsername());// Ligne modifiée
-        return new AuthResponseDTO(token, userMapper.userToUserResponseDto(user));
+        String token = jwtUtil.generateToken(user.get().getUsername());// Ligne modifiée
+        return new AuthResponseDTO(token, userMapper.userToUserResponseDto(user.get()));
     }
 }

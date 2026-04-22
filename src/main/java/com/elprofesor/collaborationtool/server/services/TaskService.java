@@ -1,7 +1,7 @@
 package com.elprofesor.collaborationtool.server.services;
 
-import com.elprofesor.collaborationtool.server.models.TaskDTO;
-import org.springframework.stereotype.Service;
+import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
+import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
 
 import java.util.List;
 import java.util.Optional;
@@ -9,9 +9,9 @@ import java.util.UUID;
 
 
 public interface TaskService {
-    List<TaskDTO> listTask();
-    Optional<TaskDTO> getTask(UUID id);
-    TaskDTO saveNewTask(TaskDTO taskDTO);
-    Optional<TaskDTO> updateTask(UUID id, TaskDTO taskDTO);
+    List<TaskResponseDTO> listTask();
+    Optional<TaskResponseDTO> getTask(UUID id);
+    TaskResponseDTO saveNewTask(TaskRequestDTO taskRequestDTO);
+    Optional<TaskRequestDTO> updateTask(UUID id, TaskRequestDTO taskRequestDTO);
     Boolean deleteTask(UUID id);
 }
