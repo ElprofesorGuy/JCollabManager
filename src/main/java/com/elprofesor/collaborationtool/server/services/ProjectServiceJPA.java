@@ -6,9 +6,8 @@ import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.mapper.ProjectMapper;
 import com.elprofesor.collaborationtool.server.mapper.TaskMapper;
-import com.elprofesor.collaborationtool.server.models.ProjectRequestDTO;
-import com.elprofesor.collaborationtool.server.models.ProjectResponseDTO;
-import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
+import com.elprofesor.collaborationtool.server.mapper.UserMapper;
+import com.elprofesor.collaborationtool.server.models.*;
 import com.elprofesor.collaborationtool.server.repositories.ProjectRepository;
 import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
@@ -35,6 +34,7 @@ public class ProjectServiceJPA implements ProjectService {
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
+    private final UserMapper userMapper;
 
     @Override
     public List<ProjectResponseDTO> listProjects() {
@@ -124,34 +124,20 @@ public class ProjectServiceJPA implements ProjectService {
 
     @Override
     public ProjectResponseDTO removeMembers(UUID projectId, Set<@Email String> memberEmails, Users currentUser) {
-
-        // 1. Récupérer le projet
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new NotFoundException(
-                        "Projet introuvable : " + projectId
-                ));
-
+        Project project = projectRepository.findById(projectId).orElseThrow(() -> new NotFoundException(
+                        "Projet introuvable : " + projectId));
         if (!project.getOwner().equals(currentUser)) {
-            throw new AccessDeniedException(
-                    "Seul le owner peut supprimer des membres"
-            );
+            throw new AccessDeniedException("Seul le owner peut supprimer des membres");
         }
-
         // 2. Résoudre les emails en entités User
         Set<Users> membersToRemove = memberEmails.stream()
                 .map(email -> userRepository.findByEmail(email)
-                        .orElseThrow(() -> new NotFoundException(
-                                "Utilisateur introuvable : " + email
-                        )))
+                        .orElseThrow(() -> new NotFoundException("Utilisateur introuvable : " + email)))
                 .collect(Collectors.toSet());
-
         // 3. Empêcher la suppression du owner
         if (membersToRemove.contains(project.getOwner())) {
-            throw new IllegalArgumentException(
-                    "Impossible de retirer le owner du projet"
-            );
+            throw new IllegalArgumentException("Impossible de retirer le owner du projet");
         }
-
         // 4. Retirer les membres du Set existant
         project.getMembers().removeAll(membersToRemove);
 
@@ -159,28 +145,46 @@ public class ProjectServiceJPA implements ProjectService {
     }
 
     @Override
-    public Set<Users> displayMembersOfaProject(UUID projectId) {
+    public Set<UserResponseDTO> displayMembersOfaProject(UUID projectId) {
         Optional <Project> project = projectRepository.findById(projectId);
-        Set <Users> listOfMembers = project.get().getMembers();
-        return listOfMembers;
+        return project.get().getMembers()
+                .stream()
+                .map(userMapper::userToUserResponseDto)
+                .collect(Collectors.toSet());
     }
 
     @Override
-    public TaskResponseDTO addTaskToProject(UUID projectId, String taskTitle) {
-        // 1. On récupère le projet
+    public ProjectResponseDTO removeTask(UUID projectId, String taskTitle, Users currentUser) {
+        Task taskToDelete = taskRepository.findByTitleContainingIgnoreCase(taskTitle).orElseThrow( () -> new NotFoundException("Tâche inexistante"));
+        Project project = projectRepository.findById(projectId).orElseThrow(() -> new NotFoundException("Projet inexistant"));
+
+        if(!project.getOwner().equals(currentUser)){
+            throw new AccessDeniedException("Seul le owner peut supprimer une tâche");
+        }
+
+       project.getTasks().remove(taskToDelete);
+        return projectMapper.projectToProjectResponseDto(project);
+    }
+
+    @Override
+    public Set<TaskResponseDTO> listOfTasks(UUID projectId) {
+        Optional <Project> project = projectRepository.findById(projectId);
+        return project.get().getTasks()
+                .stream()
+                .map(taskMapper::taskToTaskResponseDto)
+                .collect(Collectors.toSet());
+    }
+
+     /*@Override
+    public TaskResponseDTO addTaskToProject(UUID projectId, TaskRequestDTO taskRequestDTO) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException("Projet non trouvé"));
-
-        // 2. On transforme le DTO en entité Task
-        Optional<Task> task = taskRepository.findByTitleContainingIgnoreCase(taskTitle);
-
-        // 3. On utilise le helper pour faire le lien
-        project.addTask(task.get());
-
-        // 4. On sauvegarde le projet (les tâches suivront grâce au cascade=ALL)
+        //Optional<Task> task = taskRepository.findByTitleContainingIgnoreCase(taskTitle);
+        //project.addTask(task.get());
+        taskRequestDTO.setProjectName(project.getTitle());
         projectRepository.save(project);
 
-        return taskMapper.taskToTaskResponseDto(task.get());
-    }
+        //return taskMapper.taskToTaskResponseDto(task.get());
+    }*/
 
 }

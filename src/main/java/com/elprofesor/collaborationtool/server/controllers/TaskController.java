@@ -1,7 +1,9 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
+import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
 import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
+import com.elprofesor.collaborationtool.server.repositories.UserRepository;
 import com.elprofesor.collaborationtool.server.services.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,6 +13,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,9 +22,9 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class TaskController {
     private final TaskService taskService;
+    private final UserRepository userRepository;
     private final String TASK_PATH = "/api/v1/task";
     private final String TASK_PATH_ID = TASK_PATH + "/{taskId}";
 
@@ -53,24 +57,29 @@ public class TaskController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentigié, veuillez d'abord vous connecter"),
             @ApiResponse(responseCode = "404", description = "Tâche inexsitante"),
-            @ApiResponse(responseCode = "200", description = "Tâache supprimée")
+            @ApiResponse(responseCode = "204", description = "Tâche supprimée")
     })
-    public ResponseEntity deleteTask(@PathVariable("taskId") UUID taskId){
-        if(! taskService.deleteTask(taskId)){
+    public ResponseEntity deleteTask(@PathVariable("taskId") UUID taskId, @AuthenticationPrincipal UserDetails userDetails){
+        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow();
+        if(! taskService.deleteTask(taskId, currentUser)){
             throw new NotFoundException();
         }
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 
-    @PostMapping(TASK_PATH)
+    @PostMapping(TASK_PATH + "/{projectId}")
     @Operation (summary = "Création d'une nouvelle tâche", description = "Créer une nouvelle tâche")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, opération non permise"),
+            @ApiResponse(responseCode = "403", description = "Seul le owner du projet peut ajouter une tâche une tâche."),
             @ApiResponse(responseCode = "201", description = "Tâche créée avec succès"),
             @ApiResponse(responseCode = "500", description = "Verrouillage optimiste : Le champ id doit être vide/supprimez-le.")
     })
-    public ResponseEntity saveNewTask(@RequestBody TaskRequestDTO taskRequestDTO){
-        TaskResponseDTO newTask = taskService.saveNewTask(taskRequestDTO);
+    public ResponseEntity saveNewTask(@PathVariable("projectId") UUID projectId, @RequestBody TaskRequestDTO taskRequestDTO, @AuthenticationPrincipal UserDetails userDetails){
+
+        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow();
+        TaskResponseDTO newTask = taskService.saveNewTask(projectId, taskRequestDTO, currentUser);
         HttpHeaders header = new HttpHeaders();
         header.add("Location", "/api/v1/task/" + newTask.getId());
         return new ResponseEntity(HttpStatus.CREATED);
@@ -83,8 +92,10 @@ public class TaskController {
             @ApiResponse(responseCode = "204", description = "Informations de la tâche  mises à jour"),
             @ApiResponse(responseCode = "404", description = "Tâche inexistante, vérifiez l'identifiant de la tâche")
     })
-    public ResponseEntity updateExistingTask(@PathVariable UUID taskId, @RequestBody TaskRequestDTO taskRequestDTO){
-        if(taskService.updateTask(taskId, taskRequestDTO).isEmpty()){
+    public ResponseEntity updateExistingTask(@PathVariable UUID taskId, @RequestBody TaskRequestDTO taskRequestDTO, @AuthenticationPrincipal UserDetails userDetails){
+        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow();
+        if(taskService.updateTask(taskId, taskRequestDTO, currentUser).isEmpty()){
             throw new NotFoundException();
         }
         return new ResponseEntity(HttpStatus.NO_CONTENT);

@@ -1,10 +1,9 @@
 package com.elprofesor.collaborationtool.server.services;
 
 import com.elprofesor.collaborationtool.server.entities.Project;
+import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.entities.Users;
-import com.elprofesor.collaborationtool.server.models.ProjectRequestDTO;
-import com.elprofesor.collaborationtool.server.models.ProjectResponseDTO;
-import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
+import com.elprofesor.collaborationtool.server.models.*;
 import jakarta.validation.constraints.Email;
 
 import java.util.List;
@@ -22,7 +21,10 @@ public interface ProjectService {
     public boolean isProjectOwner(UUID projectId, String email);
     List<ProjectResponseDTO> listProjects();
     ProjectResponseDTO addMembers(UUID projectId, Set<@Email String> memberEmails, Users currentUser);
-    public ProjectResponseDTO removeMembers(UUID projectId, Set<@Email String> memberEmails, Users currentUser);
-    Set<Users> displayMembersOfaProject(UUID projectId);
-    TaskResponseDTO addTaskToProject(UUID projectId, String taskTitle);
+    ProjectResponseDTO removeMembers(UUID projectId, Set<@Email String> memberEmails, Users currentUser);
+    Set<UserResponseDTO> displayMembersOfaProject(UUID projectId);
+    /*TaskResponseDTO addTaskToProject(UUID projectId, TaskRequestDTO taskRequestDTO);*/
+    ProjectResponseDTO removeTask(UUID projectId, String taskTitle, Users currentUser);
+
+    Set<TaskResponseDTO> listOfTasks(UUID projectId);
 }

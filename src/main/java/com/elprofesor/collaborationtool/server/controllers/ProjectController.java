@@ -1,9 +1,8 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
+import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.entities.Users;
-import com.elprofesor.collaborationtool.server.models.ProjectRequestDTO;
-import com.elprofesor.collaborationtool.server.models.ProjectResponseDTO;
-import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
+import com.elprofesor.collaborationtool.server.models.*;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
 import com.elprofesor.collaborationtool.server.services.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,7 +24,6 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class ProjectController {
 
     private final ProjectService projectService;
@@ -91,7 +89,7 @@ public class ProjectController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "404", description = "Ce projet a déjà été supprimé ou il est inexistant."),
             @ApiResponse(responseCode = "204", description = "Projet supprimé avec succès"),
-            @ApiResponse(responseCode = "403", description = "Utilisateur non authetifié.")
+            @ApiResponse(responseCode = "403", description = "Utilisateur non authetifié | Vous n'êtes pas le owner de ce projet.")
     })
     public ResponseEntity deleteProjectById(@PathVariable("projectId") UUID projectId){
         projectService.deleteProject(projectId);
@@ -100,43 +98,92 @@ public class ProjectController {
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 
-    @PostMapping("/projects/{projectId}/members")
+    @PostMapping(PROJECT_PATH_ID + "/members")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Ajout des membres", description = "Ajouter les membres de l'équipe de projet, le owner est d'office un membre")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié"),
+            @ApiResponse(responseCode = "404", description = "Aucun projet trouvé avec cet identifiant"),
+            @ApiResponse(responseCode = "200", description = "Membre ajouté avecc succès"),
+            @ApiResponse(responseCode = "400", description = "Format d'email invalide. Votre email doit être de la forme xxxxx@xxxxx.com")
+    })
     public ResponseEntity<ProjectResponseDTO> addMembers(@PathVariable("projectId") UUID projectId,
                                                          @RequestBody Set<@Email String> memberEmails,
                                                          @AuthenticationPrincipal UserDetails userDetails) {
 
-        Users currentUser = userRepository.findByEmail(userDetails.getUsername())
+        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow();
         return ResponseEntity.ok(projectService.addMembers(projectId, memberEmails, currentUser));
     }
 
-    @DeleteMapping("/projects/{projectId}/members")
+    @DeleteMapping(PROJECT_PATH_ID + "/members")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Suppression des membres", description = "Exclure ou supprimer un membre de l'équipe, le owner ne pouvant être supprimé par lui même")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié"),
+            @ApiResponse(responseCode = "404", description = "Aucun projet trouvé avec cet identifiant"),
+            @ApiResponse(responseCode = "200", description = "Ce membre a bien été supprimé")
+    })
     public ResponseEntity<ProjectResponseDTO> removeMembers(
             @PathVariable UUID projectId,
             @RequestBody Set<@Email String> memberEmails,
             @AuthenticationPrincipal UserDetails userDetails) {
-        Users currentUser = userRepository.findByEmail(userDetails.getUsername())
+        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow();
 
         return ResponseEntity.ok(projectService.removeMembers(projectId, memberEmails, currentUser));
     }
 
-    @GetMapping("/projects/{projectId}/members")
+    @GetMapping(PROJECT_PATH_ID + "/members")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Affichage de la liste des membres", description = "Afficher l'ensemble des personnes travaillant sur un projet spécifique")
-    public Set<Users> displayListofMembers(@PathVariable("projectId")UUID projectId){
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié"),
+            @ApiResponse(responseCode = "404", description = "Aucun projet trouvé avec cet identifiant"),
+            @ApiResponse(responseCode = "200", description = "Liste des membres du projet chargée avecc succès")
+    })
+    public Set<UserResponseDTO> displayListofMembers(@PathVariable("projectId")UUID projectId){
         return projectService.displayMembersOfaProject(projectId);
     }
 
-    @PostMapping("/projects/{projectId}/tasks")
+    /*@PostMapping(PROJECT_PATH_ID + "/tasks/{taskId}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Ajout d'une tâche", description = "Ajouter une tâche à un projet")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "500", description = "No value present")
+    })
     public ResponseEntity<TaskResponseDTO> addTasks(@PathVariable("projectId") UUID projectId,
-                                                    @RequestBody String taskTitle){
-        return ResponseEntity.ok(projectService.addTaskToProject(projectId, taskTitle));
+                                                    @RequestBody TaskRequestDTO taskRequestDTO){
+        return ResponseEntity.ok(projectService.addTaskToProject(projectId, taskRequestDTO));
+    }*/
+
+    @DeleteMapping(PROJECT_PATH_ID + "/task")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Suppprimer un tâche d'un projet", description = "Supprimer une tâche d'un projet spécifique")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié"),
+            @ApiResponse(responseCode = "404", description = "Aucun projet trouvé avec cet identifiant"),
+            @ApiResponse(responseCode = "200", description = "Cette tâche a bien été supprimée"),
+            @ApiResponse(responseCode = "500", description = "Imposiible de supprimer la tâche car aucun projet n'a été trouvé")
+    })
+    public ResponseEntity<ProjectResponseDTO> removeTasks(@PathVariable("projectId")UUID projectId,
+                                                       String taskTitle,
+                                                       @AuthenticationPrincipal UserDetails userDetails){
+        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow();
+
+        return ResponseEntity.ok(projectService.removeTask(projectId, taskTitle, currentUser));
+    }
+
+    @GetMapping(PROJECT_PATH_ID + "/tasks")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Liste des tâches d'un projet", description = "Liste l'ensemble des tâches d'un projet en particulier")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié"),
+            @ApiResponse(responseCode = "404", description = "Projet inexistant"),
+            @ApiResponse(responseCode = "200", description = "Liste des tâches chargée avec succès")
+    })
+    public Set<TaskResponseDTO> displayListOfTask(@PathVariable("projectId") UUID projectId){
+        return projectService.listOfTasks(projectId);
     }
 }
