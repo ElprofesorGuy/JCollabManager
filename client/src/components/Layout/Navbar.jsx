@@ -40,7 +40,9 @@ const Navbar = () => {
               </div>
               <div className="flex items-center gap-2 text-sm font-medium border-l border-primary-500 pl-4">
                 <User className="w-4 h-4 text-primary-200" />
-                <span>{user?.username || 'Utilisateur'}</span>
+                <Link to="/profile" className="hover:text-primary-200 transition-colors">
+                  <span>{user?.username || 'Utilisateur'}</span>
+                </Link>
               </div>
               <button 
                 onClick={handleLogout}

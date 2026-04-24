@@ -6,6 +6,9 @@ import api from '../../api/axiosConfig';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import TaskComments from './TaskComments';
 
 const taskSchema = z.object({
   title: z.string().min(3, "Le titre doit faire au moins 3 caractères"),
@@ -212,6 +215,42 @@ const ProjectDetail = () => {
     setIsProjectModalOpen(true);
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Titre du projet
+    doc.setFontSize(20);
+    doc.text(`Projet : ${project.title}`, 14, 22);
+    
+    // Infos du projet
+    doc.setFontSize(12);
+    doc.text(`Chef de projet : ${project.ownerName || project.ownerEmail}`, 14, 32);
+    doc.text(`Description :`, 14, 42);
+    
+    doc.setFontSize(10);
+    const splitDescription = doc.splitTextToSize(project.description || '', 180);
+    doc.text(splitDescription, 14, 48);
+
+    // Tableau des tâches
+    const tableData = tasks.map(t => [
+      t.title,
+      t.status === 'TO_DO' ? 'À FAIRE' : t.status === 'NOT_FINISH' ? 'EN COURS' : 'TERMINÉ',
+      t.assign_to || 'Non assigné'
+    ]);
+
+    let finalY = 48 + (splitDescription.length * 5) + 10;
+    
+    doc.autoTable({
+      startY: finalY,
+      head: [['Tâche', 'Statut', 'Assigné à']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [37, 99, 235] }
+    });
+
+    doc.save(`${project.title.replace(/\s+/g, '_')}_rapport.pdf`);
+  };
+
   useEffect(() => {
     fetchProjectData();
   }, [id]);
@@ -263,6 +302,12 @@ const ProjectDetail = () => {
             <p className="text-slate-500 mt-3 max-w-2xl">{project.description}</p>
           </div>
           <div className="flex gap-2">
+            <button 
+              onClick={exportToPDF}
+              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm text-sm font-medium"
+            >
+              Exporter PDF
+            </button>
             <button 
               onClick={openMembersModal}
               className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm text-sm font-medium"
@@ -533,7 +578,7 @@ const ProjectDetail = () => {
                 />
                 {errors.assign_to && <p className="text-red-500 text-xs mt-1">{errors.assign_to.message}</p>}
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-3 mb-2">
                 <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg transition-colors">
                   Annuler
                 </button>
@@ -543,6 +588,13 @@ const ProjectDetail = () => {
                 </button>
               </div>
             </form>
+            
+            {/* Commentaires de la tâche (seulement si la tâche existe déjà) */}
+            {selectedTask && (
+              <div className="px-6 pb-6 pt-0">
+                <TaskComments taskId={selectedTask.id} />
+              </div>
+            )}
           </div>
         </div>
       )}

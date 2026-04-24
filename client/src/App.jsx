@@ -8,10 +8,13 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import ProjectList from './pages/Projects/ProjectList';
 import ProjectDetail from './pages/Projects/ProjectDetail';
 import UserManagement from './pages/Users/UserManagement';
+import Profile from './pages/Profile/Profile';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-right" />
       <div className="min-h-screen flex flex-col bg-slate-50">
         <Navbar />
         <main className="flex-grow container mx-auto px-4 py-8">
@@ -40,6 +43,12 @@ function App() {
             <Route path="/users" element={
               <ProtectedRoute>
                 <UserManagement />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             } />
             

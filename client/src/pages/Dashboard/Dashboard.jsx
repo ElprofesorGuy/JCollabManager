@@ -3,6 +3,7 @@ import { Layers, CheckCircle, Clock, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
 import api from '../../api/axiosConfig';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const Dashboard = () => {
   const { user } = useAuthStore();
@@ -33,6 +34,13 @@ const Dashboard = () => {
   const inProgressTasksCount = data.tasks.filter(t => t.status === 'NOT_FINISH').length;
   const doneTasksCount = data.tasks.filter(t => t.status === 'END').length;
   const activeProjectsCount = data.projects.length;
+  const todoTasksCount = data.tasks.filter(t => t.status === 'TO_DO').length;
+
+  const taskStatsData = [
+    { name: 'À FAIRE', value: todoTasksCount, color: '#94a3b8' }, // slate-400
+    { name: 'EN COURS', value: inProgressTasksCount, color: '#3b82f6' }, // blue-500
+    { name: 'TERMINÉES', value: doneTasksCount, color: '#22c55e' } // green-500
+  ].filter(item => item.value > 0);
   
   // Get up to 3 most recent projects
   const recentProjects = data.projects.slice(0, 3);
@@ -152,6 +160,38 @@ const Dashboard = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mt-8">
+        <h2 className="text-lg font-bold text-slate-800 mb-6">Répartition des Tâches</h2>
+        {data.tasks.length === 0 ? (
+          <div className="text-center py-12 text-slate-500">Aucune tâche pour afficher des statistiques.</div>
+        ) : (
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={taskStatsData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {taskStatsData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => [`${value} tâche(s)`, '']}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         )}
       </div>
