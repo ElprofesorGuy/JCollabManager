@@ -44,6 +44,15 @@ public class ProjectServiceJPA implements ProjectService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<ProjectResponseDTO> listMyProjects(Users currentUser) {
+        return projectRepository.findAll()
+                .stream()
+                .filter(p -> p.getOwner().equals(currentUser) || p.getMembers().contains(currentUser))
+                .map(projectMapper::projectToProjectResponseDto)
+                .collect(Collectors.toList());
+    }
+
 
     @Override
     public Optional<ProjectResponseDTO> getProjectById(UUID id) {
@@ -60,12 +69,17 @@ public class ProjectServiceJPA implements ProjectService {
     }
 
     @Override
-    public Optional<ProjectRequestDTO> updateProjectById(UUID id, ProjectRequestDTO projectRequestDTO) {
+    public Optional<ProjectRequestDTO> updateProjectById(UUID id, ProjectRequestDTO projectRequestDTO, Users currentUser) {
         AtomicReference<Optional<ProjectRequestDTO>> atomicReference = new AtomicReference<>();
         projectRepository.findById(id).ifPresentOrElse(foundProject -> {
-            foundProject.setTitle(projectRequestDTO.getTitle());
-            foundProject.setDescription(projectRequestDTO.getDescription());
-            foundProject.setOwner(userRepository.findByEmail(projectRequestDTO.getOwnerEmail()).get());
+            if (currentUser.getRole() == Role.ADMIN) {
+                foundProject.setOwner(userRepository.findByEmail(projectRequestDTO.getOwnerEmail()).orElse(foundProject.getOwner()));
+            } else if (foundProject.getOwner().equals(currentUser)) {
+                foundProject.setTitle(projectRequestDTO.getTitle());
+                foundProject.setDescription(projectRequestDTO.getDescription());
+            } else {
+                throw new AccessDeniedException("Vous n'êtes ni l'ADMIN ni le owner de ce projet");
+            }
             Project savedProject = projectRepository.save(foundProject);
             atomicReference.set(Optional.of(projectMapper.projectToProjectRequestDto(savedProject)));
         }, () -> {
@@ -118,6 +132,14 @@ public class ProjectServiceJPA implements ProjectService {
                 .collect(Collectors.toSet());
         // 3. Ajouter les nouveaux membres au Set existant
         project.getMembers().addAll(newMembers);
+        
+        // Auto-assign tasks that have no assignee to the new member (first one in the set)
+        Users firstNewMember = newMembers.stream().findFirst().orElse(null);
+        if (firstNewMember != null && project.getTasks() != null) {
+            project.getTasks().stream()
+                .filter(t -> t.getAssign_to() == null)
+                .forEach(t -> t.setAssign_to(firstNewMember));
+        }
         // 4. Sauvegarder et retourner
         return projectMapper.projectToProjectResponseDto(projectRepository.save(project));
     }
@@ -138,8 +160,16 @@ public class ProjectServiceJPA implements ProjectService {
         if (membersToRemove.contains(project.getOwner())) {
             throw new IllegalArgumentException("Impossible de retirer le owner du projet");
         }
-        // 4. Retirer les membres du Set existant
+        // 4. Retirer les membres du Set existant et désassigner leurs tâches
         project.getMembers().removeAll(membersToRemove);
+        
+        if (project.getTasks() != null) {
+            project.getTasks().forEach(task -> {
+                if (membersToRemove.contains(task.getAssign_to())) {
+                    task.setAssign_to(null);
+                }
+            });
+        }
 
         return projectMapper.projectToProjectResponseDto(projectRepository.save(project));
     }

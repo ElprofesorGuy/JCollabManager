@@ -12,4 +12,5 @@ public class ProjectResponseDTO {
     private String title;
     private String description;
     private String ownerEmail;
+    private String ownerName;
 }

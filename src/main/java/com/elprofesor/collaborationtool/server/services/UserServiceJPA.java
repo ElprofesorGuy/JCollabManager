@@ -8,6 +8,8 @@ import com.elprofesor.collaborationtool.server.models.UserResponseDTO;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.elprofesor.collaborationtool.server.models.Role;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +23,7 @@ public class UserServiceJPA implements UserService{
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public Optional<UserResponseDTO> getUser(UUID id) {
@@ -38,6 +41,8 @@ public class UserServiceJPA implements UserService{
 
     @Override
     public UserRequestDTO saveNewUser(UserRequestDTO newUser) {
+        newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
+        newUser.setRole(Role.MEMBER);
         return userMapper.userToUserRequestDto(userRepository.save(userMapper.userRequestDTOtoUser(newUser)));
     }
 

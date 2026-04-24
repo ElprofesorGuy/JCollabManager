@@ -16,6 +16,7 @@ public interface ProjectMapper {
     ProjectRequestDTO projectToProjectRequestDto(Project project);
 
     @Mapping(source = "owner.email", target = "ownerEmail")
+    @Mapping(source = "owner.username", target = "ownerName")
     ProjectResponseDTO projectToProjectResponseDto(Project project);
 
     @Mapping(source = "ownerEmail", target = "owner.email")

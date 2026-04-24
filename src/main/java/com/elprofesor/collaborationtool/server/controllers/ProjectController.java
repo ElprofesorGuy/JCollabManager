@@ -43,6 +43,18 @@ public class ProjectController {
         return projectService.listProjects();
     }
 
+    @GetMapping(PROJECT_PATH + "/my-projects")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Liste des projets de l'utilisateur", description = "Afficher la liste de tous les projets où l'utilisateur est membre ou owner")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Affichage de la liste des projets réussi"),
+        @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié")
+    })
+    public List<ProjectResponseDTO> displayMyProjects(@AuthenticationPrincipal UserDetails userDetails){
+        Users currentUser = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+        return projectService.listMyProjects(currentUser);
+    }
+
     @GetMapping(PROJECT_PATH_ID)
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Recherche d'un projet par son identifiant", description = "Rechercher un projet spécifique à l'aide de son identifiant")
@@ -71,15 +83,16 @@ public class ProjectController {
     }
 
     @PutMapping(PROJECT_PATH_ID)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@projectService.isProjectOwner(#projectId, authentication.name) or hasRole('ADMIN')")
     @Operation(summary = "Modification des informations d'un projet", description = "Modifier le titre | description | chef de projet")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Admin non authentifié"),
             @ApiResponse(responseCode = "204", description = "Informations de projet mises à jour"),
             @ApiResponse(responseCode = "404", description = "Projet inexistant, vérifiez l'identifiant du projet")
     })
-    public ResponseEntity updateProject(@PathVariable("projectId") UUID projectId, @RequestBody ProjectRequestDTO projectUpToDate){
-        projectService.updateProjectById(projectId, projectUpToDate);
+    public ResponseEntity updateProject(@PathVariable("projectId") UUID projectId, @RequestBody ProjectRequestDTO projectUpToDate, @AuthenticationPrincipal UserDetails userDetails){
+        Users currentUser = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+        projectService.updateProjectById(projectId, projectUpToDate, currentUser);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 

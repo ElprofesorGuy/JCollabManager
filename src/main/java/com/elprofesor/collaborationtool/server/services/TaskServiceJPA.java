@@ -49,7 +49,17 @@ public class TaskServiceJPA implements TaskService {
         Optional<Project> projet = projectRepository.findById(projectId);
         Task taskTosave = taskMapper.taskRequestDtoToTask(taskRequestDTO);
         taskTosave.setProject(projectRepository.findByTitleContainingIgnoreCase(taskRequestDTO.getProjectName()));
-        taskTosave.setAssign_to(userRepository.findByUsername(taskRequestDTO.getAssign_to()).get());
+        if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {
+            Optional<Users> assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());
+            if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssign_to());
+            taskTosave.setAssign_to(assignee.orElse(null));
+            if (assignee.isPresent()) {
+                projet.get().addMember(assignee.get());
+                projectRepository.save(projet.get());
+            }
+        } else {
+            taskTosave.setAssign_to(null);
+        }
         if(projet.get().getOwner().equals(currentUser)){
             return taskMapper.taskToTaskResponseDto(taskRepository.save(taskTosave));
         }else{
@@ -61,14 +71,24 @@ public class TaskServiceJPA implements TaskService {
     @Override
     public Optional<TaskRequestDTO> updateTask(UUID id, TaskRequestDTO taskRequestDTO, Users currentUser) {
         Optional<Task> tache = taskRepository.findById(id);
-        Project projet = projectRepository.findByTitleContainingIgnoreCase(tache.get().getTitle());
+        Project projet = tache.get().getProject();
         if(projet.getOwner().equals(currentUser)){
             AtomicReference<Optional<TaskRequestDTO>> atomicReference = new AtomicReference<>();
             taskRepository.findById(id).ifPresentOrElse(foundTask -> {
                 foundTask.setTitle(taskRequestDTO.getTitle());
                 foundTask.setStatus(taskRequestDTO.getStatus());
                 foundTask.setDescription(taskRequestDTO.getDescription());
-                foundTask.setAssign_to(userRepository.findByUsername(taskRequestDTO.getAssign_to()).get());
+                if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {
+                    Optional<Users> assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());
+                    if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssign_to());
+                    foundTask.setAssign_to(assignee.orElse(null));
+                    if (assignee.isPresent()) {
+                        projet.addMember(assignee.get());
+                        projectRepository.save(projet);
+                    }
+                } else {
+                    foundTask.setAssign_to(null);
+                }
                 Task savedTask = taskRepository.save(foundTask);
                 atomicReference.set(Optional.of(taskMapper.taskToTaskRequestDto(savedTask)));
             }, () -> {

@@ -15,11 +15,12 @@ import java.util.UUID;
 public interface ProjectService {
     Optional<ProjectResponseDTO> getProjectById(UUID id);
     ProjectResponseDTO saveNewProject(ProjectRequestDTO projectRequestDTO);
-    Optional<ProjectRequestDTO> updateProjectById(UUID id, ProjectRequestDTO project);
+    Optional<ProjectRequestDTO> updateProjectById(UUID id, ProjectRequestDTO project, Users currentUser);
     Boolean deleteProject(UUID id);
     Project getProjectByTitle(String keyword);
     public boolean isProjectOwner(UUID projectId, String email);
     List<ProjectResponseDTO> listProjects();
+    List<ProjectResponseDTO> listMyProjects(Users currentUser);
     ProjectResponseDTO addMembers(UUID projectId, Set<@Email String> memberEmails, Users currentUser);
     ProjectResponseDTO removeMembers(UUID projectId, Set<@Email String> memberEmails, Users currentUser);
     Set<UserResponseDTO> displayMembersOfaProject(UUID projectId);
