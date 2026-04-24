@@ -1,5 +1,6 @@
 package com.elprofesor.collaborationtool.server.services;
 
+import com.elprofesor.collaborationtool.server.models.ProfileUpdateRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserResponseDTO;
 
@@ -14,4 +15,5 @@ public interface UserService {
     UserRequestDTO saveNewUser(UserRequestDTO newUser);
     Optional<UserResponseDTO> updateUser(UserRequestDTO existingUser, UUID userId);
     List<UserResponseDTO> getUsersList();
+    Optional<UserResponseDTO> updateProfile(ProfileUpdateRequestDTO profileRequest, UUID userId, String currentUserEmail);
 }

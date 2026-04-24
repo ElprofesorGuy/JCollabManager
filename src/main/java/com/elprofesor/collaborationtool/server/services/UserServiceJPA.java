@@ -3,6 +3,7 @@ package com.elprofesor.collaborationtool.server.services;
 import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
 import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.mapper.UserMapper;
+import com.elprofesor.collaborationtool.server.models.ProfileUpdateRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserResponseDTO;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
@@ -69,5 +70,34 @@ public class UserServiceJPA implements UserService{
                 .stream()
                 .map(userMapper::userToUserResponseDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<UserResponseDTO> updateProfile(ProfileUpdateRequestDTO profileRequest, UUID userId, String currentUserEmail) {
+        AtomicReference<Optional<UserResponseDTO>> atomicReference = new AtomicReference<>();
+        userRepository.findById(userId).ifPresentOrElse(foundUser -> {
+            // Security check: Only allow users to update their own profile (or admin, but we check email here for simplicity)
+            if (!foundUser.getEmail().equals(currentUserEmail)) {
+                throw new SecurityException("You can only update your own profile");
+            }
+            
+            if (profileRequest.getUsername() != null && !profileRequest.getUsername().isEmpty()) {
+                foundUser.setUsername(profileRequest.getUsername());
+            }
+
+            if (profileRequest.getNewPassword() != null && !profileRequest.getNewPassword().isEmpty()) {
+                if (profileRequest.getCurrentPassword() != null && passwordEncoder.matches(profileRequest.getCurrentPassword(), foundUser.getPassword())) {
+                    foundUser.setPassword(passwordEncoder.encode(profileRequest.getNewPassword()));
+                } else {
+                    throw new IllegalArgumentException("Le mot de passe actuel est incorrect");
+                }
+            }
+            
+            userRepository.save(foundUser);
+            atomicReference.set(Optional.of(userMapper.userToUserResponseDto(foundUser)));
+        }, ()->{
+            atomicReference.set(Optional.empty());
+        });
+        return atomicReference.get();
     }
 }

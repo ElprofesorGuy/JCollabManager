@@ -56,6 +56,14 @@ public class TaskRequestDTO {
         this.assign_to = assign_to;
     }
 
+    public String getAttachmentUrl() {
+        return attachmentUrl;
+    }
+
+    public void setAttachmentUrl(String attachmentUrl) {
+        this.attachmentUrl = attachmentUrl;
+    }
+
     @Override
     public final boolean equals(Object o) {
         if (!(o instanceof TaskRequestDTO that)) return false;

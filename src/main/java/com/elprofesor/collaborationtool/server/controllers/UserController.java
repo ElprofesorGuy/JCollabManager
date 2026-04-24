@@ -1,6 +1,7 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
 
+import com.elprofesor.collaborationtool.server.models.ProfileUpdateRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserResponseDTO;
 import com.elprofesor.collaborationtool.server.services.UserService;
@@ -12,6 +13,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -88,5 +91,28 @@ public class UserController {
             throw new NotFoundException();
         }
         return new ResponseEntity(HttpStatus.NO_CONTENT);
+    }
+
+    @PutMapping(USER_PATH_ID + "/profile")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Mettre à jour son propre profil", description = "Met à jour le profil de l'utilisateur connecté.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Profil mis à jour avec succès"),
+            @ApiResponse(responseCode = "403", description = "Vous ne pouvez mettre à jour que votre propre profil"),
+            @ApiResponse(responseCode = "404", description = "Utilisateur non trouvé")
+    })
+    public ResponseEntity<UserResponseDTO> updateProfile(@RequestBody ProfileUpdateRequestDTO profileRequest, @PathVariable("userId") UUID userId){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        
+        try {
+            return userService.updateProfile(profileRequest, userId, currentUserEmail)
+                    .map(ResponseEntity::ok)
+                    .orElseThrow(NotFoundException::new);
+        } catch (SecurityException e) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 }

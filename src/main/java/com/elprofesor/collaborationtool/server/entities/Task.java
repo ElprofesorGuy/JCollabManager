@@ -39,6 +39,9 @@ public class Task {
     @Enumerated (EnumType.STRING)
     @Column(nullable = false)
     private Status status;
+    
+    @Column(name = "attachment_url")
+    private String attachmentUrl;
 
     @CreationTimestamp
     private LocalDate creation_date;
