@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layers, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { Layers, CheckCircle, Clock, Loader2, ListTodo } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
 import api from '../../api/axiosConfig';
@@ -41,6 +41,17 @@ const Dashboard = () => {
     { name: 'EN COURS', value: inProgressTasksCount, color: '#3b82f6' }, // blue-500
     { name: 'TERMINÉES', value: doneTasksCount, color: '#22c55e' } // green-500
   ].filter(item => item.value > 0);
+
+  const allMyTasks = data.tasks.filter(t => (t.assign_to === user?.email || t.assign_to === user?.username));
+  const myTodoCount = allMyTasks.filter(t => t.status === 'TO_DO').length;
+  const myInProgressCount = allMyTasks.filter(t => t.status === 'NOT_FINISH').length;
+  const myDoneCount = allMyTasks.filter(t => t.status === 'END').length;
+
+  const myTaskStatsData = [
+    { name: 'À FAIRE', value: myTodoCount, color: '#94a3b8' },
+    { name: 'EN COURS', value: myInProgressCount, color: '#3b82f6' },
+    { name: 'TERMINÉES', value: myDoneCount, color: '#22c55e' }
+  ].filter(item => item.value > 0);
   
   // Get up to 3 most recent projects
   const recentProjects = data.projects.slice(0, 3);
@@ -63,7 +74,7 @@ const Dashboard = () => {
         <p className="text-slate-500 mt-2">Bienvenue, {user?.username} ! Voici un aperçu de vos activités.</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="p-3 bg-primary-100 text-primary-600 rounded-lg">
             <Layers className="w-6 h-6" />
@@ -71,6 +82,16 @@ const Dashboard = () => {
           <div>
             <p className="text-sm font-medium text-slate-500">Projets Actifs</p>
             <p className="text-2xl font-bold text-slate-800">{activeProjectsCount}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="p-3 bg-slate-100 text-slate-600 rounded-lg">
+            <ListTodo className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Tâches à faire</p>
+            <p className="text-2xl font-bold text-slate-800">{todoTasksCount}</p>
           </div>
         </div>
         
@@ -128,42 +149,77 @@ const Dashboard = () => {
         )}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mt-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-bold text-slate-800">Mes Tâches à faire</h2>
-        </div>
-        
-        {myTasks.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="inline-flex justify-center items-center w-16 h-16 rounded-full bg-slate-50 mb-4">
-              <CheckCircle className="w-8 h-8 text-slate-400" />
-            </div>
-            <h3 className="text-slate-700 font-medium mb-1">Aucune tâche assignée</h3>
-            <p className="text-slate-500 text-sm">Vous n'avez pas de tâches en cours. C'est le moment de se détendre !</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-bold text-slate-800">Mes Tâches à faire</h2>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {myTasks.map(task => (
-              <div key={task.id} className="border border-slate-100 rounded-lg p-4 bg-slate-50 flex flex-col">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-slate-800 text-sm">{task.title}</h3>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${task.status === 'TO_DO' ? 'bg-slate-200 text-slate-600' : 'bg-blue-200 text-blue-800'}`}>
-                    {task.status === 'TO_DO' ? 'À FAIRE' : 'EN COURS'}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mb-4 line-clamp-2">{task.description}</p>
-                <div className="mt-auto">
-                  <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-primary-600 bg-primary-50 px-2 py-1 rounded-md">
-                    <Layers className="w-3 h-3" />
-                    Projet: {task.projectName}
-                  </span>
-                </div>
+          
+          {myTasks.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="inline-flex justify-center items-center w-16 h-16 rounded-full bg-slate-50 mb-4">
+                <CheckCircle className="w-8 h-8 text-slate-400" />
               </div>
-            ))}
-          </div>
-        )}
+              <h3 className="text-slate-700 font-medium mb-1">Aucune tâche assignée</h3>
+              <p className="text-slate-500 text-sm">Vous n'avez pas de tâches en cours. C'est le moment de se détendre !</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {myTasks.map(task => (
+                <div key={task.id} className="border border-slate-100 rounded-lg p-4 bg-slate-50 flex flex-col">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-slate-800 text-sm">{task.title}</h3>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${task.status === 'TO_DO' ? 'bg-slate-200 text-slate-600' : 'bg-blue-200 text-blue-800'}`}>
+                      {task.status === 'TO_DO' ? 'À FAIRE' : 'EN COURS'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-4 line-clamp-2">{task.description}</p>
+                  <div className="mt-auto">
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-primary-600 bg-primary-50 px-2 py-1 rounded-md">
+                      <Layers className="w-3 h-3" />
+                      Projet: {task.projectName}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+          <h2 className="text-lg font-bold text-slate-800 mb-6">Statut de mes tâches</h2>
+          {allMyTasks.length === 0 ? (
+            <div className="text-center py-12 text-slate-500">Aucune tâche assignée.</div>
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={myTaskStatsData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {myTaskStatsData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value) => [`${value} tâche(s)`, '']}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
       </div>
 
+      {user?.role === 'ADMIN' && (
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mt-8">
         <h2 className="text-lg font-bold text-slate-800 mb-6">Répartition des Tâches</h2>
         {data.tasks.length === 0 ? (
@@ -195,6 +251,7 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };
