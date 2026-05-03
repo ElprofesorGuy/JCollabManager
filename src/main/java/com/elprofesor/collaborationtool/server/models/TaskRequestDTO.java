@@ -14,6 +14,7 @@ public class TaskRequestDTO {
     private String description;
     private Status status;
     private String assign_to;
+    private String attachmentUrl;
 
 
     public String getTitle() {

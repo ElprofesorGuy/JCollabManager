@@ -523,33 +523,32 @@ const ProjectDetail = () => {
       {/* Modal Création Tâche */}
       {isTaskModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
               <h2 className="text-xl font-bold text-slate-800">
                 {selectedTask ? 'Modifier la Tâche' : 'Nouvelle Tâche'}
               </h2>
               <button onClick={() => setIsTaskModalOpen(false)} className="text-slate-400 hover:text-slate-600">×</button>
             </div>
-            <form onSubmit={handleSubmit(onTaskSubmit)} className="p-6">
+            <div className="overflow-y-auto flex-1 custom-scrollbar">
+              <form onSubmit={handleSubmit(onTaskSubmit)} className="p-6">
               {taskError && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{taskError}</span>
                 </div>
               )}
-              {selectedTask && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Statut</label>
-                  <select 
-                    {...register('status')}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
-                  >
-                    <option value="TO_DO">À Faire</option>
-                    <option value="NOT_FINISH">En Cours</option>
-                    <option value="END">Terminé</option>
-                  </select>
-                </div>
-              )}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Statut</label>
+                <select 
+                  {...register('status')}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                >
+                  <option value="TO_DO">À Faire</option>
+                  <option value="NOT_FINISH">En Cours</option>
+                  <option value="END">Terminé</option>
+                </select>
+              </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Titre de la tâche</label>
                 <input 
@@ -595,6 +594,7 @@ const ProjectDetail = () => {
                 <TaskComments taskId={selectedTask.id} />
               </div>
             )}
+            </div>
           </div>
         </div>
       )}

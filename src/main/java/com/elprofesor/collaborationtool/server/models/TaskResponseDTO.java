@@ -14,4 +14,5 @@ public class TaskResponseDTO {
     private String description;
     private Status status;
     private String assign_to;
+    private String attachmentUrl;
 }
