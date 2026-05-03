@@ -4,7 +4,7 @@ import * as z from 'zod';
 import { useNavigate, Link } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
 import api from '../../api/axiosConfig';
-import { Lock, Mail, AlertCircle } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 
 const schema = z.object({
@@ -16,6 +16,7 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
   const [serverError, setServerError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
@@ -76,11 +77,18 @@ const Login = () => {
               <Lock className="w-5 h-5" />
             </div>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               {...register('password')}
-              className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-slate-300'}`}
+              className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-slate-300'}`}
               placeholder="••••••••"
             />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
           </div>
           {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>}
         </div>
