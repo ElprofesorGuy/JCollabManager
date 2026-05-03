@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -35,7 +36,7 @@ public class CommentServiceJPA implements CommentService {
         Task task = taskRepository.findById(commentRequest.getTaskId())
                 .orElseThrow(NotFoundException::new);
         
-        Users author = userRepository.findByEmail(authorEmail)
+        Users author = userRepository.findByUsername(authorEmail)
                 .orElseThrow(NotFoundException::new);
 
         Comment comment = Comment.builder()
@@ -69,7 +70,7 @@ public class CommentServiceJPA implements CommentService {
             return false;
         }
 
-        Users currentUser = userRepository.findByEmail(authorEmail).orElseThrow(NotFoundException::new);
+        Users currentUser = userRepository.findByUsername(authorEmail).orElseThrow(NotFoundException::new);
         
         // Only author or admin can delete a comment
         if (!comment.getAuthor().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
@@ -78,5 +79,18 @@ public class CommentServiceJPA implements CommentService {
 
         commentRepository.delete(comment);
         return true;
+    }
+
+    @Override
+    public Optional<CommentResponseDTO> updateComment(CommentRequestDTO newComment, UUID commentId, String userEmail) {
+        Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new  NotFoundException("Commentaire Inexistant"));
+        Users currentUser = userRepository.findByUsername(userEmail).orElseThrow(NotFoundException::new);
+
+        //Only author or admin can modify a comment
+        if (!comment.getAuthor().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+            throw new SecurityException("Not authorized to modify this comment");
+        }
+        comment.setText(newComment.getText());
+        return Optional.of(commentMapper.commentToCommentResponseDTO(commentRepository.save(comment)));
     }
 }

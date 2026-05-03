@@ -17,6 +17,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -46,11 +47,15 @@ public class ProjectServiceJPA implements ProjectService {
 
     @Override
     public List<ProjectResponseDTO> listMyProjects(Users currentUser) {
-        return projectRepository.findAll()
+        List<ProjectResponseDTO> myProjects =  projectRepository.findAll()
                 .stream()
                 .filter(p -> p.getOwner().equals(currentUser) || p.getMembers().contains(currentUser))
                 .map(projectMapper::projectToProjectResponseDto)
                 .collect(Collectors.toList());
+        for(ProjectResponseDTO projet : myProjects){
+            System.out.println("Titre du projet : " + projet.getTitle());
+        }
+        return myProjects;
     }
 
 
@@ -72,14 +77,19 @@ public class ProjectServiceJPA implements ProjectService {
     public Optional<ProjectRequestDTO> updateProjectById(UUID id, ProjectRequestDTO projectRequestDTO, Users currentUser) {
         AtomicReference<Optional<ProjectRequestDTO>> atomicReference = new AtomicReference<>();
         projectRepository.findById(id).ifPresentOrElse(foundProject -> {
-            if (currentUser.getRole() == Role.ADMIN) {
+            if (currentUser.getRole() == Role.ADMIN && !foundProject.getOwner().equals(currentUser)) {
                 foundProject.setOwner(userRepository.findByEmail(projectRequestDTO.getOwnerEmail()).orElse(foundProject.getOwner()));
-            } else if (foundProject.getOwner().equals(currentUser)) {
+            }else if(currentUser.getRole() == Role.ADMIN && foundProject.getOwner().equals(currentUser)){
+                foundProject.setOwner(userRepository.findByEmail(projectRequestDTO.getOwnerEmail()).orElse(foundProject.getOwner()));
+                foundProject.setTitle(projectRequestDTO.getTitle());
+                foundProject.setDescription(projectRequestDTO.getDescription());
+            }else if (foundProject.getOwner().equals(currentUser)) {
                 foundProject.setTitle(projectRequestDTO.getTitle());
                 foundProject.setDescription(projectRequestDTO.getDescription());
             } else {
                 throw new AccessDeniedException("Vous n'êtes ni l'ADMIN ni le owner de ce projet");
             }
+            foundProject.setUpdate_date(LocalDate.now());
             Project savedProject = projectRepository.save(foundProject);
             atomicReference.set(Optional.of(projectMapper.projectToProjectRequestDto(savedProject)));
         }, () -> {

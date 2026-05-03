@@ -80,7 +80,7 @@ public class UserController {
     }
 
     @PutMapping(USER_PATH_ID)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Mettre à jour un utilisateur", description = "Met à jour les données et renvoie un statut 204 si réussi.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Utilisateur mis à jour"),

@@ -26,9 +26,6 @@ public class Task {
     @EqualsAndHashCode.Include
     private UUID id;
 
-    //@NotNull
-    //private UUID project_id;
-
     @Column(length = 50)
     @Size(max = 50)
     private String title;

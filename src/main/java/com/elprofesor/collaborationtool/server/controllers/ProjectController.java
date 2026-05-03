@@ -50,6 +50,7 @@ public class ProjectController {
         @ApiResponse(responseCode = "200", description = "Affichage de la liste des projets réussi"),
         @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié")
     })
+
     public List<ProjectResponseDTO> displayMyProjects(@AuthenticationPrincipal UserDetails userDetails){
         Users currentUser = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
         return projectService.listMyProjects(currentUser);

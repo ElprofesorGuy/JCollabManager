@@ -54,4 +54,22 @@ public class CommentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
+
+    @PutMapping("/{commentId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<CommentResponseDTO> modifycomment(@PathVariable UUID commentId, @PathVariable UUID taskId, @RequestBody CommentRequestDTO commentRequestDTO){
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentEmail = auth.getName();
+        try{
+            return commentService.updateComment(commentRequestDTO, commentId, currentEmail)
+                    .map(ResponseEntity::ok)
+                    .orElseThrow(NotFoundException::new);
+        }catch (SecurityException e) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+
 }

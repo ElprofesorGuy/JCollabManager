@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.elprofesor.collaborationtool.server.models.Role;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -44,6 +45,7 @@ public class UserServiceJPA implements UserService{
     public UserRequestDTO saveNewUser(UserRequestDTO newUser) {
         newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
         newUser.setRole(Role.MEMBER);
+        newUser.setDate_creation(LocalDate.now());
         return userMapper.userToUserRequestDto(userRepository.save(userMapper.userRequestDTOtoUser(newUser)));
     }
 
@@ -78,10 +80,13 @@ public class UserServiceJPA implements UserService{
         userRepository.findById(userId).ifPresentOrElse(foundUser -> {
             // Security check: Only allow users to update their own profile (or admin, but we check email here for simplicity)
             if (!foundUser.getEmail().equals(currentUserEmail)) {
+                System.out.println("Found User email : " + foundUser.getEmail());
+                System.out.println("Current user email : " + currentUserEmail);
                 throw new SecurityException("You can only update your own profile");
             }
             
             if (profileRequest.getUsername() != null && !profileRequest.getUsername().isEmpty()) {
+                System.out.println("profile Request username : " + profileRequest.getUsername());
                 foundUser.setUsername(profileRequest.getUsername());
             }
 

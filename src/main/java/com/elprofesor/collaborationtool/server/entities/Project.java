@@ -38,6 +38,9 @@ public class Project {
     @CreationTimestamp
     private LocalDate creation_date;
 
+    @CreationTimestamp
+    private LocalDate update_date;
+
     @ManyToOne
     @JoinColumn(name = "owner_id", columnDefinition = "uuid")
     @NotNull
