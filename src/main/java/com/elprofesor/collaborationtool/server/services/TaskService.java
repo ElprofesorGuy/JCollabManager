@@ -1,6 +1,7 @@
 package com.elprofesor.collaborationtool.server.services;
 
 import com.elprofesor.collaborationtool.server.entities.Users;
+import com.elprofesor.collaborationtool.server.models.Status;
 import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
 import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
 
@@ -15,4 +16,6 @@ public interface TaskService {
     TaskResponseDTO saveNewTask(UUID projectId, TaskRequestDTO taskRequestDTO, Users currentUser);
     Optional<TaskRequestDTO> updateTask(UUID id, TaskRequestDTO taskRequestDTO, Users currentUser);
     Boolean deleteTask(UUID id, Users currentUser);
+    List<TaskResponseDTO> listOverdueTask();
+    List<TaskResponseDTO> getTaskByStatus(Status taskStatus);
 }

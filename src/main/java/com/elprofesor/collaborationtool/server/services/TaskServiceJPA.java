@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -82,13 +83,18 @@ public class TaskServiceJPA implements TaskService {
             AtomicReference<Optional<TaskRequestDTO>> atomicReference = new AtomicReference<>();
             taskRepository.findById(id).ifPresentOrElse(foundTask -> {
                 foundTask.setTitle(taskRequestDTO.getTitle());
+                if(taskRequestDTO.getStatus().equals(Status.OVERDUE)){//On ne peut marquer manuellement une tâche comme OVERDUE
+                    throw new IllegalArgumentException("Impossible de marquer manuellement une tâche comme OVERDUE.");
+                }
                 if(tache.getStatus().equals(Status.END)){
                     System.out.println("Impossible de modifier cette tâche");
                     throw new IllegalArgumentException("Cette tâche est déjà marquée comme terminé, vous ne pouvez pas modifier son statut");
 
                 }else if(tache.getStatus().equals(Status.TO_DO) && taskRequestDTO.getStatus().equals(Status.END)){
                     throw new IllegalArgumentException("Impossible de faire passer cette de \"A faire\" à \"Terminé\" sans passer par \"En cours\"");
-                }else{
+                }else if(tache.getStatus().equals(Status.OVERDUE)){//Une tâche rétardée dans sa livraison ne peut voir son statut être modifiée
+                    throw new IllegalArgumentException("Impossible de modifier le statut de cete tâche.");
+                } else{
                     foundTask.setStatus(taskRequestDTO.getStatus());
                 }
                 foundTask.setDescription(taskRequestDTO.getDescription());
@@ -118,11 +124,7 @@ public class TaskServiceJPA implements TaskService {
     @Override
     public Boolean deleteTask(UUID id, Users currentUser) {
         Optional<Task> tache = taskRepository.findById(id);
-        System.out.println("Nom de la tâche trouvée : " + tache.get().getTitle());
         Project projet = projectRepository.findByTitleContainingIgnoreCase(tache.get().getProject().getTitle());
-        //System.out.println("Projet correspondant : " + projet.toString());
-        System.out.println("Owner trouvé : " + projet.getOwner().getUsername());
-        System.out.println("Utilisateur actuellement connecté : " + currentUser.getUsername());
         if(projet.getOwner().equals(currentUser)){
             if(taskRepository.existsById(id)){
                 taskRepository.deleteById(id);
@@ -134,4 +136,23 @@ public class TaskServiceJPA implements TaskService {
 
         return false;
     }
+
+    @Override
+    public List<TaskResponseDTO> listOverdueTask() {
+        return taskRepository.findByDateEcheanceBeforeAndStatusNot(LocalDate.now(), Status.END)
+                .stream()
+                .map(taskMapper::taskToTaskResponseDto)
+                .collect(Collectors.toList());
+
+    }
+
+    @Override
+    public List<TaskResponseDTO> getTaskByStatus(Status taskStatus) {
+        return taskRepository.findByStatus(taskStatus)
+                .stream()
+                .map(taskMapper::taskToTaskResponseDto)
+                .collect(Collectors.toList());
+    }
+
+
 }

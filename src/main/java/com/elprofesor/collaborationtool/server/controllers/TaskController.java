@@ -1,6 +1,7 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
 import com.elprofesor.collaborationtool.server.entities.Users;
+import com.elprofesor.collaborationtool.server.models.Status;
 import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
 import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
@@ -35,7 +36,10 @@ public class TaskController {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter"),
             @ApiResponse(responseCode = "200", description = "Liste des tâches chargée avec succès")
     })
-    public List<TaskResponseDTO> displayListOfTasks(){
+    public List<TaskResponseDTO> displayListOfTasks(@RequestParam(required = false) Status taskStatus){
+        if(taskStatus != null){
+            return  taskService.getTaskByStatus(taskStatus);
+        }
         return taskService.listTask();
     }
 
@@ -90,7 +94,8 @@ public class TaskController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié"),
             @ApiResponse(responseCode = "204", description = "Informations de la tâche  mises à jour"),
-            @ApiResponse(responseCode = "404", description = "Tâche inexistante, vérifiez l'identifiant de la tâche")
+            @ApiResponse(responseCode = "404", description = "Tâche inexistante, vérifiez l'identifiant de la tâche"),
+            @ApiResponse(responseCode = "500", description = "Vous essayez sûrement de marquer manuellement une tâche comme OVERDUE")
     })
     public ResponseEntity updateExistingTask(@PathVariable UUID taskId, @RequestBody TaskRequestDTO taskRequestDTO, @AuthenticationPrincipal UserDetails userDetails){
         Users currentUser = userRepository.findByUsername(userDetails.getUsername())
@@ -99,5 +104,15 @@ public class TaskController {
             throw new NotFoundException();
         }
         return new ResponseEntity(HttpStatus.NO_CONTENT);
+    }
+
+    @GetMapping(TASK_PATH + "/overdue")
+    @Operation(summary = "Liste des tâches marquées en retard", description = "Afficher la liste des tâches qui sont marquées comme étant des tâches en retard")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste affichée avec succès"),
+            @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter")
+    })
+    public List<TaskResponseDTO> displayOverdueTasks(){
+        return taskService.listOverdueTask();
     }
 }
