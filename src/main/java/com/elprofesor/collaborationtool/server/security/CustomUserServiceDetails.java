@@ -25,7 +25,6 @@ public class CustomUserServiceDetails implements UserDetailsService {
                         "Utilisateur non trouvé : " + email
                 ));*/
         Optional<Users> user = userRepository.findByUsername(username);
-        System.out.println("Username reçu : " + username);
 
         UserDetails userDetails = User
                 .builder()

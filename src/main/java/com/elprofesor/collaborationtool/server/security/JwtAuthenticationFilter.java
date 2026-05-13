@@ -23,7 +23,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
+    protected boolean shouldNotFilter(HttpServletRequest request) {//Ne pas filtrer des routes spécifiques notamment les routes d'authentification, de connexion, d'inscription et de déconnexion
         String path = request.getServletPath();
         // ← ignorer les routes publiques
         return path.startsWith("/api/auth/");
@@ -58,60 +58,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        System.out.println("--- DEBUG FILTRE ---");
-        System.out.println("Token reçu : " + token);
 
         // 3. Valider et authentifier
         if (jwtUtil.validateToken(token)) {
             String username = jwtUtil.extractUsername(token);
-            System.out.println("Username extrait : " + username); // SI ICI C'EST ADMIN, LE BUG EST DANS JWTUTIL OU LE TOKEN LUI-MÊME
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            System.out.println("UserDetails chargé : " + userDetails.getUsername()); // SI ICI C'EST DIFFERENT DE USERNAME, LE BUG EST DANS USERDETAILSSERVICE
-
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities()
-                    );
-
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-        }
-
-        filterChain.doFilter(request, response);
-    }
-}
-
-/*
-    @Component
-@RequiredArgsConstructor
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
-    private final JwtUtil jwtUtil;
-    private final UserDetailsService userDetailsService;
-
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getServletPath();
-        // ← ignorer les routes publiques
-        return path.startsWith("/api/auth/");
-    }
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
-            throws ServletException, IOException {
-
-        String authHeader = request.getHeader("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String token = authHeader.substring(7);
-
-        if (jwtUtil.validateToken(token)) {
-            String username = jwtUtil.extractUsername(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             UsernamePasswordAuthenticationToken authentication =
@@ -125,4 +75,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
-*/
