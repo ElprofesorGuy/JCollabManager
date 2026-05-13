@@ -3,7 +3,8 @@ package com.elprofesor.collaborationtool.server.models;
 public enum Status {
     TO_DO("A Faire"),
     NOT_FINISH("En cours"),
-    END("Terminé");
+    END("Terminé"),
+    OVERDUE("En retard");
 
     private final String label;
 

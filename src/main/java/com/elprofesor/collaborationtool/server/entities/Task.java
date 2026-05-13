@@ -40,6 +40,10 @@ public class Task {
     @Column(name = "attachment_url")
     private String attachmentUrl;
 
+
+    @Column(name = "date_echeance")
+    private LocalDate dateEcheance;
+
     @CreationTimestamp
     private LocalDate creation_date;
 

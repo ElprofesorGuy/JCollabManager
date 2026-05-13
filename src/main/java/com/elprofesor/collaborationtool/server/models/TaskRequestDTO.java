@@ -4,7 +4,6 @@ import lombok.Builder;
 
 import java.time.LocalDate;
 import java.util.Objects;
-import java.util.UUID;
 
 
 @Builder
@@ -15,6 +14,7 @@ public class TaskRequestDTO {
     private Status status;
     private String assign_to;
     private String attachmentUrl;
+    private LocalDate dateEcheance;
 
 
     public String getTitle() {
@@ -65,20 +65,31 @@ public class TaskRequestDTO {
         this.attachmentUrl = attachmentUrl;
     }
 
+    public LocalDate getDateEcheance() {
+        return dateEcheance;
+    }
+
+    public void setDateEcheance(LocalDate dateEcheance) {
+        this.dateEcheance = dateEcheance;
+    }
+
+
     @Override
     public final boolean equals(Object o) {
         if (!(o instanceof TaskRequestDTO that)) return false;
 
-        return Objects.equals(projectName, that.projectName) && Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && getStatus() == that.getStatus() && Objects.equals(getAssign_to(), that.getAssign_to());
+        return Objects.equals(getProjectName(), that.getProjectName()) && Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && getStatus() == that.getStatus() && Objects.equals(getAssign_to(), that.getAssign_to()) && Objects.equals(getAttachmentUrl(), that.getAttachmentUrl()) && Objects.equals(getDateEcheance(), that.getDateEcheance());
     }
 
     @Override
     public int hashCode() {
-        int result = Objects.hashCode(projectName);
+        int result = Objects.hashCode(getProjectName());
         result = 31 * result + Objects.hashCode(getTitle());
         result = 31 * result + Objects.hashCode(getDescription());
         result = 31 * result + Objects.hashCode(getStatus());
         result = 31 * result + Objects.hashCode(getAssign_to());
+        result = 31 * result + Objects.hashCode(getAttachmentUrl());
+        result = 31 * result + Objects.hashCode(getDateEcheance());
         return result;
     }
 
@@ -90,6 +101,8 @@ public class TaskRequestDTO {
                 ", description='" + description + '\'' +
                 ", status=" + status +
                 ", assign_to='" + assign_to + '\'' +
+                ", attachmentUrl='" + attachmentUrl + '\'' +
+                ", date_echeance=" + dateEcheance +
                 '}';
     }
 }

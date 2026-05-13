@@ -3,6 +3,7 @@ package com.elprofesor.collaborationtool.server.models;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Builder
@@ -15,4 +16,5 @@ public class TaskResponseDTO {
     private Status status;
     private String assign_to;
     private String attachmentUrl;
+    private LocalDate dateEcheance;
 }
