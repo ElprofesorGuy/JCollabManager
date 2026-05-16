@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layers, CheckCircle, Clock, Loader2, ListTodo } from 'lucide-react';
+import { Layers, CheckCircle, Clock, Loader2, ListTodo, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
 import api from '../../api/axiosConfig';
@@ -35,22 +35,26 @@ const Dashboard = () => {
   const doneTasksCount = data.tasks.filter(t => t.status === 'END').length;
   const activeProjectsCount = data.projects.length;
   const todoTasksCount = data.tasks.filter(t => t.status === 'TO_DO').length;
+  const overdueTasksCount = data.tasks.filter(t => t.status === 'OVERDUE').length;
 
   const taskStatsData = [
-    { name: 'À FAIRE', value: todoTasksCount, color: '#94a3b8' }, // slate-400
-    { name: 'EN COURS', value: inProgressTasksCount, color: '#3b82f6' }, // blue-500
-    { name: 'TERMINÉES', value: doneTasksCount, color: '#22c55e' } // green-500
+    { name: 'À FAIRE', value: todoTasksCount, color: '#94a3b8' },
+    { name: 'EN COURS', value: inProgressTasksCount, color: '#3b82f6' },
+    { name: 'TERMINÉES', value: doneTasksCount, color: '#22c55e' },
+    { name: 'EN RETARD', value: overdueTasksCount, color: '#ef4444' }
   ].filter(item => item.value > 0);
 
   const allMyTasks = data.tasks.filter(t => (t.assign_to === user?.email || t.assign_to === user?.username));
   const myTodoCount = allMyTasks.filter(t => t.status === 'TO_DO').length;
   const myInProgressCount = allMyTasks.filter(t => t.status === 'NOT_FINISH').length;
   const myDoneCount = allMyTasks.filter(t => t.status === 'END').length;
+  const myOverdueCount = allMyTasks.filter(t => t.status === 'OVERDUE').length;
 
   const myTaskStatsData = [
     { name: 'À FAIRE', value: myTodoCount, color: '#94a3b8' },
     { name: 'EN COURS', value: myInProgressCount, color: '#3b82f6' },
-    { name: 'TERMINÉES', value: myDoneCount, color: '#22c55e' }
+    { name: 'TERMINÉES', value: myDoneCount, color: '#22c55e' },
+    { name: 'EN RETARD', value: myOverdueCount, color: '#ef4444' }
   ].filter(item => item.value > 0);
   
   // Get up to 3 most recent projects
@@ -74,7 +78,7 @@ const Dashboard = () => {
         <p className="text-slate-500 mt-2">Bienvenue, {user?.username} ! Voici un aperçu de vos activités.</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="p-3 bg-primary-100 text-primary-600 rounded-lg">
             <Layers className="w-6 h-6" />
@@ -112,6 +116,16 @@ const Dashboard = () => {
           <div>
             <p className="text-sm font-medium text-slate-500">Tâches terminées</p>
             <p className="text-2xl font-bold text-slate-800">{doneTasksCount}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-red-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="p-3 bg-red-100 text-red-600 rounded-lg">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Tâches en retard</p>
+            <p className="text-2xl font-bold text-red-600">{overdueTasksCount}</p>
           </div>
         </div>
       </div>
@@ -166,11 +180,17 @@ const Dashboard = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {myTasks.map(task => (
-                <div key={task.id} className="border border-slate-100 rounded-lg p-4 bg-slate-50 flex flex-col">
+                <div key={task.id} className={`border rounded-lg p-4 flex flex-col ${
+                  task.status === 'OVERDUE' ? 'border-red-200 bg-red-50' : 'border-slate-100 bg-slate-50'
+                }`}>
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-slate-800 text-sm">{task.title}</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${task.status === 'TO_DO' ? 'bg-slate-200 text-slate-600' : 'bg-blue-200 text-blue-800'}`}>
-                      {task.status === 'TO_DO' ? 'À FAIRE' : 'EN COURS'}
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      task.status === 'OVERDUE' ? 'bg-red-200 text-red-800' :
+                      task.status === 'TO_DO' ? 'bg-slate-200 text-slate-600' :
+                      'bg-blue-200 text-blue-800'
+                    }`}>
+                      {task.status === 'OVERDUE' ? 'EN RETARD' : task.status === 'TO_DO' ? 'À FAIRE' : 'EN COURS'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mb-4 line-clamp-2">{task.description}</p>

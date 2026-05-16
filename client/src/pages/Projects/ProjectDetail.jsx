@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Layers, ArrowLeft, Plus, Loader2, Users, Trash2, UserPlus, AlertCircle, Settings, Edit2 } from 'lucide-react';
+import { Layers, ArrowLeft, Plus, Loader2, Users, Trash2, UserPlus, AlertCircle, Settings, Edit2, AlertTriangle, Calendar } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import api from '../../api/axiosConfig';
 import { useForm } from 'react-hook-form';
@@ -14,8 +14,32 @@ const taskSchema = z.object({
   title: z.string().min(3, "Le titre doit faire au moins 3 caractères"),
   description: z.string().min(5, "La description doit faire au moins 5 caractères"),
   assign_to: z.string().email("L'adresse email de l'assigné est invalide").or(z.literal('')),
-  status: z.enum(['TO_DO', 'NOT_FINISH', 'END']).optional()
+  status: z.enum(['TO_DO', 'NOT_FINISH', 'END', 'OVERDUE']).optional(),
+  dateEcheance: z.string().optional()
 });
+
+const getStatusLabel = (status) => {
+  switch (status) {
+    case 'TO_DO': return 'À FAIRE';
+    case 'NOT_FINISH': return 'EN COURS';
+    case 'END': return 'TERMINÉ';
+    case 'OVERDUE': return 'EN RETARD';
+    default: return status;
+  }
+};
+
+const formatDate = (dateEcheance) => {
+  if (!dateEcheance) return null;
+  // Si Jackson renvoie un tableau [2026, 5, 20]
+  if (Array.isArray(dateEcheance)) {
+    const [y, m, d] = dateEcheance;
+    return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
+  }
+  // Si c'est une chaîne ISO "2026-05-20"
+  const parts = String(dateEcheance).split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return dateEcheance;
+};
 
 const projectSchema = z.object({
   title: z.string().min(3, "Titre requis").optional(),
@@ -99,14 +123,25 @@ const ProjectDetail = () => {
     setTaskError('');
     setSelectedTask(task);
     if (task) {
+      // Normalise la date pour l'input type="date" (format YYYY-MM-DD requis)
+      let isoDate = '';
+      if (task.dateEcheance) {
+        if (Array.isArray(task.dateEcheance)) {
+          const [y, m, d] = task.dateEcheance;
+          isoDate = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        } else {
+          isoDate = String(task.dateEcheance).slice(0, 10);
+        }
+      }
       reset({
         title: task.title,
         description: task.description,
         assign_to: task.assign_to || '',
-        status: task.status
+        status: task.status,
+        dateEcheance: isoDate
       });
     } else {
-      reset({ title: '', description: '', assign_to: '', status: 'TO_DO' });
+      reset({ title: '', description: '', assign_to: '', status: 'TO_DO', dateEcheance: '' });
     }
     setIsTaskModalOpen(true);
   };
@@ -119,7 +154,8 @@ const ProjectDetail = () => {
         title: data.title,
         description: data.description,
         status: data.status || 'TO_DO',
-        assign_to: data.assign_to || ''
+        assign_to: data.assign_to || '',
+        dateEcheance: data.dateEcheance || null
       };
       
       if (selectedTask) {
@@ -234,18 +270,25 @@ const ProjectDetail = () => {
     // Tableau des tâches
     const tableData = tasks.map(t => [
       t.title,
-      t.status === 'TO_DO' ? 'À FAIRE' : t.status === 'NOT_FINISH' ? 'EN COURS' : 'TERMINÉ',
-      t.assign_to || 'Non assigné'
+      getStatusLabel(t.status),
+      t.assign_to || 'Non assigné',
+      t.dateEcheance || '-'
     ]);
 
     let finalY = 48 + (splitDescription.length * 5) + 10;
     
     doc.autoTable({
       startY: finalY,
-      head: [['Tâche', 'Statut', 'Assigné à']],
+      head: [['Tâche', 'Statut', 'Assigné à', 'Échéance']],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [37, 99, 235] }
+      headStyles: { fillColor: [37, 99, 235] },
+      didParseCell: (data) => {
+        if (data.column.index === 1 && data.row.raw && data.row.raw[1] === 'EN RETARD') {
+          data.cell.styles.textColor = [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
     });
 
     doc.save(`${project.title.replace(/\s+/g, '_')}_rapport.pdf`);
@@ -272,6 +315,7 @@ const ProjectDetail = () => {
   const tasksToDo = tasks.filter(t => t.status === 'TO_DO');
   const tasksInProgress = tasks.filter(t => t.status === 'NOT_FINISH');
   const tasksDone = tasks.filter(t => t.status === 'END');
+  const tasksOverdue = tasks.filter(t => t.status === 'OVERDUE');
 
   return (
     <div className="animate-fade-in">
@@ -326,8 +370,8 @@ const ProjectDetail = () => {
         </div>
       </div>
 
-      {/* Kanban Board (Affichage simple pour le moment) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+      {/* Kanban Board */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
         
         {/* Colonne À Faire */}
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col h-[600px] shadow-sm">
@@ -354,12 +398,18 @@ const ProjectDetail = () => {
                     )}
                   </div>
                   <p className="text-slate-500 text-xs line-clamp-2 mb-2">{task.description}</p>
-                  {task.assign_to && (
-                    <div className="flex items-center gap-1 text-xs text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full w-fit">
-                      <Users className="w-3 h-3" />
-                      <span>{task.assign_to.split('@')[0]}</span>
+                  <div className="flex flex-wrap items-center gap-1 mt-auto">
+                    {task.assign_to && (
+                      <div className="flex items-center gap-1 text-xs text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">
+                        <Users className="w-3 h-3" />
+                        <span>{task.assign_to.split('@')[0]}</span>
+                      </div>
+                    )}
+                    <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${task.dateEcheance ? 'text-slate-600 bg-slate-100' : 'text-slate-400 bg-slate-50 italic'}`}>
+                      <Calendar className="w-3 h-3" />
+                      <span>{task.dateEcheance ? formatDate(task.dateEcheance) : 'Pas d\'échéance'}</span>
                     </div>
-                  )}
+                  </div>
                 </div>
               ))
             )}
@@ -391,12 +441,18 @@ const ProjectDetail = () => {
                     )}
                   </div>
                   <p className="text-slate-500 text-xs line-clamp-2 mb-2">{task.description}</p>
-                  {task.assign_to && (
-                    <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full w-fit">
-                      <Users className="w-3 h-3" />
-                      <span>{task.assign_to.split('@')[0]}</span>
+                  <div className="flex flex-wrap items-center gap-1 mt-auto">
+                    {task.assign_to && (
+                      <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                        <Users className="w-3 h-3" />
+                        <span>{task.assign_to.split('@')[0]}</span>
+                      </div>
+                    )}
+                    <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${task.dateEcheance ? 'text-slate-600 bg-slate-100' : 'text-slate-400 bg-slate-50 italic'}`}>
+                      <Calendar className="w-3 h-3" />
+                      <span>{task.dateEcheance ? formatDate(task.dateEcheance) : 'Pas d\'échéance'}</span>
                     </div>
-                  )}
+                  </div>
                 </div>
               ))
             )}
@@ -428,12 +484,61 @@ const ProjectDetail = () => {
                     )}
                   </div>
                   <p className="text-slate-500 text-xs line-clamp-2 mb-2">{task.description}</p>
-                  {task.assign_to && (
-                    <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full w-fit opacity-75">
-                      <Users className="w-3 h-3" />
-                      <span>{task.assign_to.split('@')[0]}</span>
+                  <div className="flex flex-wrap items-center gap-1 mt-auto">
+                    {task.assign_to && (
+                      <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full opacity-75">
+                        <Users className="w-3 h-3" />
+                        <span>{task.assign_to.split('@')[0]}</span>
+                      </div>
+                    )}
+                    <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full opacity-75 ${task.dateEcheance ? 'text-emerald-700 bg-emerald-100' : 'text-slate-400 bg-slate-50 italic'}`}>
+                      <Calendar className="w-3 h-3" />
+                      <span>{task.dateEcheance ? formatDate(task.dateEcheance) : 'Pas d\'échéance'}</span>
                     </div>
-                  )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Colonne En Retard */}
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col h-[600px] shadow-sm">
+          <h3 className="font-bold text-red-900 mb-4 flex items-center justify-between">
+            <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-500" />En Retard</span>
+            <span className="bg-red-200 text-red-800 px-2 py-0.5 rounded-full text-xs">{tasksOverdue.length}</span>
+          </h3>
+          <div className="flex-grow overflow-y-auto space-y-3">
+            {tasksOverdue.length === 0 ? (
+              <p className="text-red-400/70 text-sm text-center py-4 border-2 border-dashed border-red-200 rounded-lg">Aucune tâche</p>
+            ) : (
+              tasksOverdue.map(task => (
+                <div onClick={() => openTaskModal(task)} key={task.id} className="bg-white p-4 rounded-lg shadow-sm border border-red-200 hover:border-red-400 transition-colors cursor-pointer border-l-4 border-l-red-500 group/task relative">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-bold text-red-800 text-sm mb-1">{task.title}</h4>
+                    {isOwner && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
+                        className="text-red-300 hover:text-red-600 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
+                        title="Supprimer la tâche"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-slate-500 text-xs line-clamp-2 mb-2">{task.description}</p>
+                  <div className="flex flex-wrap items-center gap-1 mt-auto">
+                    {task.assign_to && (
+                      <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                        <Users className="w-3 h-3" />
+                        <span>{task.assign_to.split('@')[0]}</span>
+                      </div>
+                    )}
+                    <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold ${task.dateEcheance ? 'text-red-700 bg-red-100' : 'text-slate-400 bg-slate-50 italic font-normal'}`}>
+                      <Calendar className="w-3 h-3" />
+                      <span>{task.dateEcheance ? formatDate(task.dateEcheance) : 'Pas d\'échéance'}</span>
+                    </div>
+                  </div>
                 </div>
               ))
             )}
@@ -547,6 +652,7 @@ const ProjectDetail = () => {
                   <option value="TO_DO">À Faire</option>
                   <option value="NOT_FINISH">En Cours</option>
                   <option value="END">Terminé</option>
+                  {selectedTask && <option value="OVERDUE">En Retard</option>}
                 </select>
               </div>
               <div className="mb-4">
@@ -567,7 +673,7 @@ const ProjectDetail = () => {
                 />
                 {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
               </div>
-              <div className="mb-6">
+              <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Assigner à (Email) <span className="text-slate-400 font-normal">- Optionnel</span></label>
                 <input 
                   type="email"
@@ -576,6 +682,17 @@ const ProjectDetail = () => {
                   placeholder={project?.ownerEmail}
                 />
                 {errors.assign_to && <p className="text-red-500 text-xs mt-1">{errors.assign_to.message}</p>}
+              </div>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />Date d'échéance <span className="text-slate-400 font-normal">- Optionnel</span></span>
+                </label>
+                <input 
+                  type="date"
+                  {...register('dateEcheance')} 
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">Si dépassée, la tâche passera automatiquement en &quot;En Retard&quot;.</p>
               </div>
               <div className="flex justify-end gap-3 mb-2">
                 <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg transition-colors">

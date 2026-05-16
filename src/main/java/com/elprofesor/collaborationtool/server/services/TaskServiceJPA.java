@@ -98,6 +98,14 @@ public class TaskServiceJPA implements TaskService {
                     foundTask.setStatus(taskRequestDTO.getStatus());
                 }
                 foundTask.setDescription(taskRequestDTO.getDescription());
+                if(taskRequestDTO.getDateEcheance() != null){
+                    if(taskRequestDTO.getDateEcheance().isBefore(LocalDate.now())){
+                        throw new IllegalArgumentException("Champ dateEcheance invalide : choisissez une date ultérieure à la date actuelle");
+                    }else{
+                        foundTask.setDateEcheance(taskRequestDTO.getDateEcheance());
+                        System.out.println("Date echéance : " + foundTask.getDateEcheance());
+                    }
+                }
                 if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {
                     Optional<Users> assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());
                     if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssign_to());

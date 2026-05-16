@@ -17,8 +17,8 @@ import java.util.List;
 public class TaskScheduling {
     private final TaskRepository taskRepository;
 
-    //Toutes les 5 miniutes, le Scheduler met à jour les tâches marquées OVERDUE
-    @Scheduled(cron = "0 */5 * * * *")
+    //Tous les jours à minuit, le Scheduler met à jour les tâches marquées OVERDUE
+    @Scheduled(cron = "0 0 0 * * *")
     public void markTaskOverdue(){
         List<Task> overdueTasks = taskRepository
                 .findByDateEcheanceBeforeAndStatusNot(LocalDate.now(), Status.END);
