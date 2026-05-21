@@ -27,5 +27,6 @@ public class TaskScheduling {
             task.setStatus(Status.OVERDUE);
         });
         taskRepository.saveAll(overdueTasks);
+        System.out.println("Activation du Scheduling");
     }
 }
