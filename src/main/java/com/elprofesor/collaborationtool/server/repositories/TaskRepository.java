@@ -17,4 +17,5 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findByDateEcheanceBeforeAndStatusNot(LocalDate date, Status taskStatus);
 
     List<Task> findByStatus(Status taskStatus);
+    List<Task> findByDateEcheanceBefore(LocalDate deadline);
 }

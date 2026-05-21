@@ -59,7 +59,7 @@ public class AuthService {
                     + "Veuillez cliquer sur le lien ci après pour choisir un nouveau mot de passe : "
                     + resetLink + ".\n" + "Attention, ce lien expire dans 3 minutes.\n"
                     + "Si vous n'êtes pas à l'origine de cet email, veuillez l'ignorer.";
-            emailSenderService.sendMailForResetPassword(dto.getUserEmail(),
+            emailSenderService.sendMail(dto.getUserEmail(),
                     "Lien pour reset le password",
                     message);
         }

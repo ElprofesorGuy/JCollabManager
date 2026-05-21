@@ -3,6 +3,7 @@ package com.elprofesor.collaborationtool.server.Schedulers;
 import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.models.Status;
 import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
+import com.elprofesor.collaborationtool.server.services.EmailSenderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TaskScheduling {
     private final TaskRepository taskRepository;
+    private final EmailSenderService emailSenderService;
 
     //Tous les jours à minuit, le Scheduler met à jour les tâches marquées OVERDUE
     @Scheduled(cron = "0 0 0 * * *")
@@ -29,4 +31,17 @@ public class TaskScheduling {
         taskRepository.saveAll(overdueTasks);
         System.out.println("Activation du Scheduling");
     }
+
+    @Scheduled(cron = "0 0 0 * * *")//Chaque jour à minuit
+    public void notifyUpcomingDeadline(){
+        LocalDate deadline = LocalDate.now().plusDays(2);
+        List<Task> upcomingDeadlineTask = taskRepository.findByDateEcheanceBefore(deadline);
+        upcomingDeadlineTask.forEach(upcomingTask ->{
+            String email = upcomingTask.getAssign_to().getEmail();
+            String message = "La deadline de la tâche : " + upcomingTask.getTitle() + " est le " + upcomingTask.getDateEcheance()
+                    + ". Dépêchez vous de la terminer.";
+            emailSenderService.sendMail(email, "Deadline de la tâche", message);
+        });
+    }
+    
 }

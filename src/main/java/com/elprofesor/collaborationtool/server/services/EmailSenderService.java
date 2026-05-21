@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 public class EmailSenderService {
     private final JavaMailSender javaMailSender;
 
-    public void sendMailForResetPassword(String toEmail, String subject, String bodyEmail){
+    public void sendMail(String toEmail, String subject, String bodyEmail){
         SimpleMailMessage simpleMailMessage = new SimpleMailMessage();
         simpleMailMessage.setFrom("guembuguy69@gmail.com");
         simpleMailMessage.setTo(toEmail);
