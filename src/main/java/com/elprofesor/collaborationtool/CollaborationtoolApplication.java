@@ -12,18 +12,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @RequiredArgsConstructor
 public class CollaborationtoolApplication {
-    //private final EmailSenderService emailSenderService;
-
 
 	public static void main(String[] args) {
 		SpringApplication.run(CollaborationtoolApplication.class, args);
 	}
 
-    /*@EventListener(ApplicationReadyEvent.class)
-    public void sendMail(){
-        emailSenderService.sendEmail("guyeinstein15@gmail.com", "This is subject",
-                "Send an email through my Spring boot Application");
-    }*/
 
 
 }
