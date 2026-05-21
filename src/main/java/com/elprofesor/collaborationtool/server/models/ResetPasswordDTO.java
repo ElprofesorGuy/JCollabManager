@@ -5,6 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class ForgotPasswordDTO {
-    private String userEmail;
+public class ResetPasswordDTO {
+    private String token;
+    private String newPassword;
 }
