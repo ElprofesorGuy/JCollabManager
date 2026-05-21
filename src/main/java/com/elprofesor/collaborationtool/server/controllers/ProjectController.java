@@ -160,17 +160,6 @@ public class ProjectController {
         return projectService.displayMembersOfaProject(projectId);
     }
 
-    /*@PostMapping(PROJECT_PATH_ID + "/tasks/{taskId}")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Ajout d'une tâche", description = "Ajouter une tâche à un projet")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "500", description = "No value present")
-    })
-    public ResponseEntity<TaskResponseDTO> addTasks(@PathVariable("projectId") UUID projectId,
-                                                    @RequestBody TaskRequestDTO taskRequestDTO){
-        return ResponseEntity.ok(projectService.addTaskToProject(projectId, taskRequestDTO));
-    }*/
-
     @DeleteMapping(PROJECT_PATH_ID + "/task")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Suppprimer un tâche d'un projet", description = "Supprimer une tâche d'un projet spécifique")

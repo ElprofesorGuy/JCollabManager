@@ -1,9 +1,10 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
-import com.elprofesor.collaborationtool.server.models.AuthResponseDTO;
-import com.elprofesor.collaborationtool.server.models.LoginRequestDTO;
-import com.elprofesor.collaborationtool.server.models.UserRequestDTO;
+import com.elprofesor.collaborationtool.server.entities.Users;
+import com.elprofesor.collaborationtool.server.models.*;
+import com.elprofesor.collaborationtool.server.repositories.UserRepository;
 import com.elprofesor.collaborationtool.server.services.AuthService;
+import com.elprofesor.collaborationtool.server.services.EmailSenderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -16,17 +17,45 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
+    private final EmailSenderService emailSenderService;
+    private final UserRepository userRepository;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDTO> register(@RequestBody @Valid UserRequestDTO dto, HttpServletResponse response) {
         AuthResponseDTO authResponse = authService.register(dto);
         setJwtCookie(response, authResponse.getToken());
         return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Forgot password", description = "Envoi d'un mail pour reset le password")
+    public ResponseEntity<Map<String, String>> handleForgotPassword(@RequestBody ForgotPasswordDTO dto) {
+        authService.forgotPassword(dto);
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Si ce compte existe, un lien de récupération a été envoyé par e-mail.");
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset Password", description="Changer le mot de passe d'un utilisateur")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Votre mot de passe a bien été changé"),
+            @ApiResponse(responseCode = "500", description = "Le token a expiré")
+    })
+    public ResponseEntity<Void> resetPassword(@RequestParam String token, @RequestBody ResetPasswordDTO resetPasswordDTO, HttpServletResponse response){
+        authService.resetPassword(resetPasswordDTO);
+        //setJwtCookie(response, token);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/login")
