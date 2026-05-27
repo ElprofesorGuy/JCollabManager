@@ -14,8 +14,12 @@ import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
 import jdk.jshell.Snippet;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -33,14 +37,8 @@ public class TaskServiceJPA implements TaskService {
     private final UserMapper userMapper;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
-
-    @Override
-    public List<TaskResponseDTO> listTask() {
-        return taskRepository.findAll()
-                .stream()
-                .map(taskMapper::taskToTaskResponseDto)
-                .collect(Collectors.toList());
-    }
+    private final static int DEFAULT_PAGE = 0;
+    private final static int DEFAULT_PAGE_SIZE = 20;
 
     @Override
     public Optional<TaskResponseDTO> getTask(UUID id) {
@@ -154,13 +152,43 @@ public class TaskServiceJPA implements TaskService {
 
     }
 
-    @Override
-    public List<TaskResponseDTO> getTaskByStatus(Status taskStatus) {
-        return taskRepository.findByStatus(taskStatus)
-                .stream()
-                .map(taskMapper::taskToTaskResponseDto)
-                .collect(Collectors.toList());
+    public PageRequest buildPageRequest(Integer pageNumber, Integer pageSize){
+        int queryPageNumber;
+        int queryPageSize;
+        if(pageNumber != null && pageNumber>0){
+            queryPageNumber = pageNumber - 1;
+        }else{
+            queryPageNumber = DEFAULT_PAGE;
+        }
+        if(pageSize == null){
+            queryPageSize = DEFAULT_PAGE_SIZE;
+        }else{
+            if(pageSize > 1000){
+                queryPageSize = 1000;
+            }else{
+                queryPageSize = pageSize;
+            }
+
+        }
+        return PageRequest.of(queryPageNumber, queryPageSize);
     }
 
+    @Override
+    public Page<TaskResponseDTO> listOfTasks(String taskTitle, Status status, Integer pageNumber, Integer pageSize) {
+        Page<Task> listTasks;
+        PageRequest pageRequest = buildPageRequest(pageNumber, pageSize);
+        
+        if(StringUtils.hasText(taskTitle) && status != null){
+            listTasks = taskRepository.findByTitleIsLikeIgnoreCaseAndStatus("%" + taskTitle + "%", status, pageRequest);
+        } else if (StringUtils.hasText(taskTitle)) {
+            listTasks = taskRepository.findByTitleIsLikeIgnoreCase("%" + taskTitle + "%", pageRequest);
+        } else if (status != null) {
+            listTasks = taskRepository.findByStatus(status, pageRequest);
+        } else {
+            listTasks = taskRepository.findAll(pageRequest);
+        }
+
+        return listTasks.map(taskMapper::taskToTaskResponseDto);
+    }
 
 }

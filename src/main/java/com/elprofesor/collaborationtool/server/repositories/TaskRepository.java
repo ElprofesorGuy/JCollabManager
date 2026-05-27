@@ -2,6 +2,8 @@ package com.elprofesor.collaborationtool.server.repositories;
 
 import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.models.Status;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -17,5 +19,12 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findByDateEcheanceBeforeAndStatusNot(LocalDate date, Status taskStatus);
 
     List<Task> findByStatus(Status taskStatus);
-    List<Task> findByDateEcheanceBefore(LocalDate deadline);
+
+    List<Task> findByDateEcheanceBetweenAndStatusNot(LocalDate start, LocalDate deadline, Status status);
+
+    Page<Task> findByTitleIsLikeIgnoreCase(String taskTitle, Pageable pageable);
+
+    Page<Task> findByStatus(Status status, Pageable pageable);
+
+    Page<Task> findByTitleIsLikeIgnoreCaseAndStatus(String taskTitle, Status status, Pageable pageable);
 }

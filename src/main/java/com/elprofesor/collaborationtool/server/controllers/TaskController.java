@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,12 +37,23 @@ public class TaskController {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter"),
             @ApiResponse(responseCode = "200", description = "Liste des tâches chargée avec succès")
     })
-    public List<TaskResponseDTO> displayListOfTasks(@RequestParam(required = false) Status taskStatus){
-        if(taskStatus != null){
-            return  taskService.getTaskByStatus(taskStatus);
-        }
-        return taskService.listTask();
+    public Page<TaskResponseDTO> displayListOfTasks(@RequestParam(required = false) Integer pageNumber,
+                                                    @RequestParam(required = false) Integer pageSize,
+                                                    @RequestParam(required = false) String taskTitle,
+                                                    @RequestParam(required = false) Status taskStatus){
+        return taskService.listOfTasks(taskTitle, taskStatus, pageNumber, pageSize);
     }
+
+    /*@GetMapping(TASK_PATH)
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Liste des tâches triées par Status")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter"),
+            @ApiResponse(responseCode = "200", description = "Liste des tâches chargée avec succès")
+    })
+    public List<TaskResponseDTO> displayTaskByStatus(@RequestParam Status taskStatus){
+        return taskService.getTaskByStatus(taskStatus);
+    }*/
 
     @GetMapping(TASK_PATH_ID)
     @PreAuthorize("isAuthenticated()")
