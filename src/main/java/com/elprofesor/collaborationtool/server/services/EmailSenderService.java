@@ -3,6 +3,7 @@ package com.elprofesor.collaborationtool.server.services;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 public class EmailSenderService {
     private final JavaMailSender javaMailSender;
 
+    @Async
     public void sendMail(String toEmail, String subject, String bodyEmail){
         SimpleMailMessage simpleMailMessage = new SimpleMailMessage();
         simpleMailMessage.setFrom("guembuguy69@gmail.com");
