@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -37,8 +38,51 @@ public class TaskServiceJPA implements TaskService {
     private final UserMapper userMapper;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
+    private final FileStorageService fileStorageService;
     private final static int DEFAULT_PAGE = 0;
     private final static int DEFAULT_PAGE_SIZE = 20;
+
+    @Override
+    public TaskResponseDTO uploadAttachment(UUID taskId, MultipartFile file, Users currentUser) {
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
+        Project project = task.getProject();
+        
+        // Vérification des permissions : owner ou membre assigné (ou admin)
+        // Simplifions en autorisant l'owner ou l'utilisateur assigné
+        boolean isOwner = project.getOwner().equals(currentUser);
+        boolean isAssignee = task.getAssign_to() != null && task.getAssign_to().equals(currentUser);
+        
+        if (!isOwner && !isAssignee) {
+            throw new AccessDeniedException("Seul le chef de projet ou la personne assignée peut ajouter une pièce jointe.");
+        }
+
+        String fileName = fileStorageService.storeFile(file);
+        task.setAttachmentUrl(fileName);
+        Task savedTask = taskRepository.save(task);
+        
+        return taskMapper.taskToTaskResponseDto(savedTask);
+    }
+
+    @Override
+    public TaskResponseDTO removeAttachment(UUID taskId, Users currentUser) {
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
+        Project project = task.getProject();
+        
+        boolean isOwner = project.getOwner().equals(currentUser);
+        boolean isAssignee = task.getAssign_to() != null && task.getAssign_to().equals(currentUser);
+        
+        if (!isOwner && !isAssignee) {
+            throw new AccessDeniedException("Seul le chef de projet ou la personne assignée peut supprimer une pièce jointe.");
+        }
+
+        if (task.getAttachmentUrl() != null) {
+            fileStorageService.deleteFile(task.getAttachmentUrl());
+            task.setAttachmentUrl(null);
+            taskRepository.save(task);
+        }
+        
+        return taskMapper.taskToTaskResponseDto(task);
+    }
 
     @Override
     public Optional<TaskResponseDTO> getTask(UUID id) {
@@ -152,6 +196,7 @@ public class TaskServiceJPA implements TaskService {
 
     }
 
+
     public PageRequest buildPageRequest(Integer pageNumber, Integer pageSize){
         int queryPageNumber;
         int queryPageSize;
@@ -173,22 +218,26 @@ public class TaskServiceJPA implements TaskService {
         return PageRequest.of(queryPageNumber, queryPageSize);
     }
 
+    public Page<Task> listTaskByName(String taskTitle, Pageable pageable){
+        return taskRepository.findByTitleIsLikeIgnoreCase("%" + taskTitle + "%", pageable);
+    }
+
     @Override
-    public Page<TaskResponseDTO> listOfTasks(String taskTitle, Status status, Integer pageNumber, Integer pageSize) {
+    public Page<TaskResponseDTO> listOfTasks(String taskTitle, Status status,Integer pageNumber, Integer pageSize) {
         Page<Task> listTasks;
         PageRequest pageRequest = buildPageRequest(pageNumber, pageSize);
-        
         if(StringUtils.hasText(taskTitle) && status != null){
             listTasks = taskRepository.findByTitleIsLikeIgnoreCaseAndStatus("%" + taskTitle + "%", status, pageRequest);
-        } else if (StringUtils.hasText(taskTitle)) {
+        }else if(StringUtils.hasText(taskTitle)){
             listTasks = taskRepository.findByTitleIsLikeIgnoreCase("%" + taskTitle + "%", pageRequest);
-        } else if (status != null) {
+        }else if(status != null){
             listTasks = taskRepository.findByStatus(status, pageRequest);
-        } else {
+        }else{
             listTasks = taskRepository.findAll(pageRequest);
         }
 
         return listTasks.map(taskMapper::taskToTaskResponseDto);
     }
+
 
 }

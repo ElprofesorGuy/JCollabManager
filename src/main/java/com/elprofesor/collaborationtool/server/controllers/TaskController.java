@@ -18,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -126,5 +127,33 @@ public class TaskController {
     })
     public List<TaskResponseDTO> displayOverdueTasks(){
         return taskService.listOverdueTask();
+    }
+    @PostMapping(TASK_PATH_ID + "/upload")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Uploader une pièce jointe", description = "Permet de joindre un fichier (document, image) à une tâche.")
+    public ResponseEntity<TaskResponseDTO> uploadAttachment(
+            @PathVariable("taskId") UUID taskId,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        
+        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow();
+        
+        TaskResponseDTO updatedTask = taskService.uploadAttachment(taskId, file, currentUser);
+        return ResponseEntity.ok(updatedTask);
+    }
+
+    @DeleteMapping(TASK_PATH_ID + "/attachment")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Supprimer une pièce jointe", description = "Permet de supprimer le fichier attaché à une tâche.")
+    public ResponseEntity<TaskResponseDTO> removeAttachment(
+            @PathVariable("taskId") UUID taskId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        
+        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow();
+        
+        TaskResponseDTO updatedTask = taskService.removeAttachment(taskId, currentUser);
+        return ResponseEntity.ok(updatedTask);
     }
 }
