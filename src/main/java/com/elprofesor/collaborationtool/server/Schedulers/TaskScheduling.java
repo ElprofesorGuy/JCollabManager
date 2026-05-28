@@ -18,13 +18,14 @@ public class TaskScheduling {
     private final EmailSenderService emailSenderService;
 
     //Tous les jours à minuit, le Scheduler met à jour les tâches marquées OVERDUE
-    @Scheduled(cron = "0 0 0 * * *")
+    @Scheduled(cron = "0 30 0 * * *")
     public void markTaskOverdue(){
         List<Task> overdueTasks = taskRepository
                 .findByDateEcheanceBeforeAndStatusNot(LocalDate.now(), Status.END);
 
         overdueTasks.forEach(task -> {
             task.setStatus(Status.OVERDUE);
+            System.out.println("Changement de status de la tâche : " + task.getTitle());
         });
         taskRepository.saveAll(overdueTasks);
         System.out.println("Activation du Scheduling");
