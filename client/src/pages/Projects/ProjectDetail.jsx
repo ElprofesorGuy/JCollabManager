@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Layers, ArrowLeft, Plus, Loader2, Users, Trash2, UserPlus, AlertCircle, Settings, Edit2, AlertTriangle, Calendar } from 'lucide-react';
+import { Layers, ArrowLeft, Plus, Loader2, Users, Trash2, UserPlus, AlertCircle, Settings, Edit2, AlertTriangle, Calendar, Paperclip, Download, Upload } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import api from '../../api/axiosConfig';
 import { useForm } from 'react-hook-form';
@@ -60,6 +60,7 @@ const ProjectDetail = () => {
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [memberError, setMemberError] = useState('');
   const [taskError, setTaskError] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -87,10 +88,9 @@ const ProjectDetail = () => {
       const projectRes = await api.get(`/v1/project/${id}`);
       setProject(projectRes.data);
 
-      // Fetch all tasks and filter by project name (since task endpoint returns all tasks)
-      const tasksRes = await api.get('/v1/task');
-      const safeTasks = Array.isArray(tasksRes.data) ? tasksRes.data : [];
-      const projectTasks = safeTasks.filter(t => t.projectName === projectRes.data.title);
+      // Fetch tasks for this specific project
+      const tasksRes = await api.get(`/v1/project/${id}/tasks`);
+      const projectTasks = Array.isArray(tasksRes.data) ? tasksRes.data : [];
       setTasks(projectTasks);
     } catch (err) {
       console.error(err);
@@ -169,6 +169,48 @@ const ProjectDetail = () => {
     } catch (err) {
       console.error(err);
       setTaskError(err.response?.data?.message || err.response?.data || "Erreur lors de l'opération sur la tâche.");
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selectedTask) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploadingFile(true);
+      setTaskError('');
+      const res = await api.post(`/v1/task/${selectedTask.id}/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setSelectedTask(res.data);
+      fetchProjectData();
+    } catch (err) {
+      console.error(err);
+      setTaskError(err.response?.data?.message || err.response?.data || "Erreur lors du téléversement du fichier.");
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleFileDelete = async () => {
+    if (!selectedTask || !selectedTask.attachmentUrl) return;
+
+    try {
+      setUploadingFile(true);
+      setTaskError('');
+      const res = await api.delete(`/v1/task/${selectedTask.id}/attachment`);
+      setSelectedTask(res.data);
+      fetchProjectData();
+    } catch (err) {
+      console.error(err);
+      setTaskError(err.response?.data?.message || err.response?.data || "Erreur lors de la suppression du fichier.");
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -704,6 +746,70 @@ const ProjectDetail = () => {
                 </button>
               </div>
             </form>
+            
+            {/* Section Pièce jointe */}
+            {selectedTask && (
+              <div className="px-6 pb-4 pt-2 border-t border-slate-100">
+                <h3 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
+                  <Paperclip className="w-4 h-4" />
+                  Pièce jointe
+                </h3>
+                
+                {selectedTask.attachmentUrl ? (
+                  <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="p-2 bg-primary-100 text-primary-600 rounded">
+                        <Paperclip className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm font-medium text-slate-700 truncate" title={selectedTask.attachmentUrl}>
+                        {selectedTask.attachmentUrl.split('/').pop()}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <a 
+                        href={`http://localhost:9000/uploads/${selectedTask.attachmentUrl}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                        title="Télécharger / Voir"
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                      <label className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors cursor-pointer" title="Remplacer">
+                        {uploadingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploadingFile} />
+                      </label>
+                      <button 
+                        type="button"
+                        onClick={handleFileDelete}
+                        disabled={uploadingFile}
+                        className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-center border-2 border-dashed border-slate-300 rounded-lg p-6 hover:bg-slate-50 transition-colors">
+                    <label className="flex flex-col items-center gap-2 cursor-pointer w-full">
+                      {uploadingFile ? (
+                        <Loader2 className="w-6 h-6 animate-spin text-primary-600" />
+                      ) : (
+                        <>
+                          <div className="p-2 bg-primary-50 text-primary-600 rounded-full">
+                            <Upload className="w-6 h-6" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-600">Cliquez pour ajouter un fichier</span>
+                          <span className="text-xs text-slate-400">PDF, Images, etc. (max 10MB)</span>
+                        </>
+                      )}
+                      <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploadingFile} />
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
             
             {/* Commentaires de la tâche (seulement si la tâche existe déjà) */}
             {selectedTask && (

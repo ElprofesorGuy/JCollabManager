@@ -19,7 +19,7 @@ const Dashboard = () => {
         ]);
         setData({
           projects: projectsRes.data,
-          tasks: tasksRes.data
+          tasks: tasksRes.data.content || tasksRes.data
         });
       } catch (error) {
         console.error("Erreur lors du chargement des données", error);
