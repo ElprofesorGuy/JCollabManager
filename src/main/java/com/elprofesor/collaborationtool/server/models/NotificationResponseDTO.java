@@ -1,14 +1,11 @@
 package com.elprofesor.collaborationtool.server.models;
 
-import com.elprofesor.collaborationtool.server.entities.Users;
-import jakarta.persistence.*;
 import lombok.Builder;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
 
 @Builder
-public class NotificationRequestDTO {
+public class NotificationResponseDTO {
     private UUID id;
     private String message;
     private String recipientUsername;
@@ -21,14 +18,6 @@ public class NotificationRequestDTO {
 
     public void setId(UUID id) {
         this.id = id;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
     }
 
     public String getRecipientUsername() {
@@ -45,6 +34,14 @@ public class NotificationRequestDTO {
 
     public void setType(NotificationType type) {
         this.type = type;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
     }
 
     public boolean isRead() {
