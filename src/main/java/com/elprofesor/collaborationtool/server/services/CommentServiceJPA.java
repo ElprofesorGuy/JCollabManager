@@ -5,9 +5,7 @@ import com.elprofesor.collaborationtool.server.entities.Comment;
 import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.mapper.CommentMapper;
-import com.elprofesor.collaborationtool.server.models.CommentRequestDTO;
-import com.elprofesor.collaborationtool.server.models.CommentResponseDTO;
-import com.elprofesor.collaborationtool.server.models.Role;
+import com.elprofesor.collaborationtool.server.models.*;
 import com.elprofesor.collaborationtool.server.repositories.CommentRepository;
 import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
@@ -29,6 +27,7 @@ public class CommentServiceJPA implements CommentService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final CommentMapper commentMapper;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -45,8 +44,14 @@ public class CommentServiceJPA implements CommentService {
                 .author(author)
                 .createdAt(LocalDateTime.now())
                 .build();
-
+        NotificationRequestDTO dto = NotificationRequestDTO.builder()
+                .message("Un nouveau commentaire a été fait sur une de vos tâches")
+                .recipientUsername(task.getAssign_to().getUsername())
+                .type(NotificationType.COMMENTAIRE_AJOUTE)
+                .build();
+        notificationService.saveNewNotification(dto);
         Comment savedComment = commentRepository.save(comment);
+        System.out.println("Un commentaire a été ajouté");
         return commentMapper.commentToCommentResponseDTO(savedComment);
     }
 

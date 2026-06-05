@@ -6,9 +6,7 @@ import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.mapper.TaskMapper;
 import com.elprofesor.collaborationtool.server.mapper.UserMapper;
-import com.elprofesor.collaborationtool.server.models.Status;
-import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
-import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
+import com.elprofesor.collaborationtool.server.models.*;
 import com.elprofesor.collaborationtool.server.repositories.ProjectRepository;
 import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
@@ -41,6 +39,7 @@ public class TaskServiceJPA implements TaskService {
     private final FileStorageService fileStorageService;
     private final static int DEFAULT_PAGE = 0;
     private final static int DEFAULT_PAGE_SIZE = 20;
+    private final NotificationService notificationService;
 
     @Override
     public TaskResponseDTO uploadAttachment(UUID taskId, MultipartFile file, Users currentUser) {
@@ -93,9 +92,10 @@ public class TaskServiceJPA implements TaskService {
     public TaskResponseDTO saveNewTask(UUID projectId, TaskRequestDTO taskRequestDTO, Users currentUser) {
         Optional<Project> projet = projectRepository.findById(projectId);
         Optional<Users> assignee = Optional.empty();
+        System.out.println("Assigné à : " + taskRequestDTO.getAssign_to());
         Task taskTosave = taskMapper.taskRequestDtoToTask(taskRequestDTO);
-        System.out.println("Id de la tâche : " + taskTosave.getId());
-        System.out.println("Statut de la tâche : " + taskTosave.getStatus());
+        //System.out.println("Id de la tâche : " + taskTosave.getId());
+        //System.out.println("Statut de la tâche : " + taskTosave.getStatus());
         taskTosave.setProject(projectRepository.findByTitleContainingIgnoreCase(taskRequestDTO.getProjectName()));
         if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {//Si la chaine assign_to n'est pas vide même après suppression des espaces
             assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());//On récupère l'utilisateur à qui la tâche sera assignée par son email
@@ -108,6 +108,12 @@ public class TaskServiceJPA implements TaskService {
         if(projet.get().getOwner().equals(currentUser)){//On vérifie si l'utilisateur connecté est le chef de projet du projet dont on souhaite définir une tâche
             if (assignee.isPresent()) {
                 projet.get().addMember(assignee.get());//Et ce n'est qu'à ce moment , on peut valider la requête et ajouter assignee comme membre de l'équipe
+                NotificationRequestDTO dto = NotificationRequestDTO.builder()
+                        .type(NotificationType.NOUVELLE_TACHE)
+                        .message("Vous avez une nouvelle tâche qui vous est assignée : " + taskRequestDTO.getTitle())
+                        .recipientUsername(assignee.get().getUsername())
+                        .build();
+                notificationService.saveNewNotification(dto);
                 projectRepository.save(projet.get());
             }
             return taskMapper.taskToTaskResponseDto(taskRepository.save(taskTosave));
