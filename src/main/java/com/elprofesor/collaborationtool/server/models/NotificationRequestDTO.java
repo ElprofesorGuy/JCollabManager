@@ -14,6 +14,7 @@ public class NotificationRequestDTO {
     private String recipientUsername;
     private boolean isRead;
     private NotificationType type;
+    private String targetUrl;
 
     public UUID getId() {
         return id;
@@ -53,5 +54,13 @@ public class NotificationRequestDTO {
 
     public void setIsRead(boolean read) {
         isRead = read;
+    }
+
+    public String getTargetUrl() {
+        return targetUrl;
+    }
+
+    public void setTargetUrl(String targetUrl) {
+        this.targetUrl = targetUrl;
     }
 }
