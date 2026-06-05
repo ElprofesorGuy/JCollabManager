@@ -48,6 +48,7 @@ public class CommentServiceJPA implements CommentService {
                 .message("Un nouveau commentaire a été fait sur une de vos tâches")
                 .recipientUsername(task.getAssign_to().getUsername())
                 .type(NotificationType.COMMENTAIRE_AJOUTE)
+                .targetUrl("/projects/" + task.getProject().getId())
                 .build();
         notificationService.saveNewNotification(dto);
         Comment savedComment = commentRepository.save(comment);

@@ -112,6 +112,7 @@ public class TaskServiceJPA implements TaskService {
                         .type(NotificationType.NOUVELLE_TACHE)
                         .message("Vous avez une nouvelle tâche qui vous est assignée : " + taskRequestDTO.getTitle())
                         .recipientUsername(assignee.get().getUsername())
+                        .targetUrl("/projects/" + projectId)
                         .build();
                 notificationService.saveNewNotification(dto);
                 projectRepository.save(projet.get());
