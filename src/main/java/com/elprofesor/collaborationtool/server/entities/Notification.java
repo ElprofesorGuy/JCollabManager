@@ -33,6 +33,8 @@ public class Notification {
     @Column(name = "notification_type")
     private NotificationType type;
 
+    private String targetUrl;
+
     public UUID getId() {
         return id;
     }
@@ -73,11 +75,19 @@ public class Notification {
         this.type = type;
     }
 
+    public String getTargetUrl() {
+        return targetUrl;
+    }
+
+    public void setTargetUrl(String targetUrl) {
+        this.targetUrl = targetUrl;
+    }
+
     @Override
     public final boolean equals(Object o) {
         if (!(o instanceof Notification that)) return false;
 
-        return isRead() == that.isRead() && Objects.equals(getId(), that.getId()) && Objects.equals(getMessage(), that.getMessage()) && Objects.equals(getDestinataire(), that.getDestinataire()) && getType() == that.getType();
+        return isRead() == that.isRead() && Objects.equals(getId(), that.getId()) && Objects.equals(getMessage(), that.getMessage()) && Objects.equals(getDestinataire(), that.getDestinataire()) && getType() == that.getType() && Objects.equals(getTargetUrl(), that.getTargetUrl());
     }
 
     @Override
@@ -87,6 +97,7 @@ public class Notification {
         result = 31 * result + Objects.hashCode(getDestinataire());
         result = 31 * result + Boolean.hashCode(isRead());
         result = 31 * result + Objects.hashCode(getType());
+        result = 31 * result + Objects.hashCode(getTargetUrl());
         return result;
     }
 
@@ -98,6 +109,7 @@ public class Notification {
                 ", destinataire=" + destinataire +
                 ", isRead=" + isRead +
                 ", type=" + type +
+                ", targetUrl='" + targetUrl + '\'' +
                 '}';
     }
 }
