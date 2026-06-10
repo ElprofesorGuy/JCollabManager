@@ -9,12 +9,15 @@ import * as z from 'zod';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import TaskComments from './TaskComments';
+import GanttView from '../../components/GanttView';
+import { AlignLeft, Network } from 'lucide-react';
 
 const taskSchema = z.object({
   title: z.string().min(3, "Le titre doit faire au moins 3 caractères"),
   description: z.string().min(5, "La description doit faire au moins 5 caractères"),
   assign_to: z.string().email("L'adresse email de l'assigné est invalide").or(z.literal('')),
   status: z.enum(['TO_DO', 'NOT_FINISH', 'END', 'OVERDUE']).optional(),
+  dateDebut: z.string().optional(),
   dateEcheance: z.string().optional()
 });
 
@@ -61,6 +64,9 @@ const ProjectDetail = () => {
   const [memberError, setMemberError] = useState('');
   const [taskError, setTaskError] = useState('');
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [viewMode, setViewMode] = useState('kanban'); // 'kanban' ou 'gantt'
+  const [dependencies, setDependencies] = useState([]);
+  const [selectedPredecessors, setSelectedPredecessors] = useState([]);
 
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -92,6 +98,15 @@ const ProjectDetail = () => {
       const tasksRes = await api.get(`/v1/project/${id}/tasks`);
       const projectTasks = Array.isArray(tasksRes.data) ? tasksRes.data : [];
       setTasks(projectTasks);
+
+      // Fetch dependencies
+      try {
+        const depRes = await api.get(`/v1/projects/${id}/dependencies`);
+        setDependencies(Array.isArray(depRes.data) ? depRes.data : []);
+      } catch(e) {
+        console.error("Impossible de charger les dépendances", e);
+        setDependencies([]);
+      }
     } catch (err) {
       console.error(err);
       setError('Impossible de charger les détails du projet.');
@@ -123,25 +138,46 @@ const ProjectDetail = () => {
     setTaskError('');
     setSelectedTask(task);
     if (task) {
-      // Normalise la date pour l'input type="date" (format YYYY-MM-DD requis)
-      let isoDate = '';
+      // Normalise les dates pour l'input type="date" (format YYYY-MM-DD requis)
+      let isoDateEcheance = '';
       if (task.dateEcheance) {
         if (Array.isArray(task.dateEcheance)) {
           const [y, m, d] = task.dateEcheance;
-          isoDate = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          isoDateEcheance = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         } else {
-          isoDate = String(task.dateEcheance).slice(0, 10);
+          isoDateEcheance = String(task.dateEcheance).slice(0, 10);
         }
       }
+      
+      let isoDateDebut = '';
+      if (task.dateDebut) {
+        if (Array.isArray(task.dateDebut)) {
+          const [y, m, d] = task.dateDebut;
+          isoDateDebut = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        } else {
+          isoDateDebut = String(task.dateDebut).slice(0, 10);
+        }
+      }
+
+      let initialPredecessors = [];
+      if (task.id) {
+        initialPredecessors = dependencies
+          .filter(d => d.successorId === task.id)
+          .map(d => d.predecessorId);
+      }
+      setSelectedPredecessors(initialPredecessors);
+
       reset({
         title: task.title,
         description: task.description,
         assign_to: task.assign_to || '',
         status: task.status,
-        dateEcheance: isoDate
+        dateDebut: isoDateDebut,
+        dateEcheance: isoDateEcheance
       });
     } else {
-      reset({ title: '', description: '', assign_to: '', status: 'TO_DO', dateEcheance: '' });
+      setSelectedPredecessors([]);
+      reset({ title: '', description: '', assign_to: '', status: 'TO_DO', dateDebut: '', dateEcheance: '' });
     }
     setIsTaskModalOpen(true);
   };
@@ -155,13 +191,38 @@ const ProjectDetail = () => {
         description: data.description,
         status: data.status || 'TO_DO',
         assign_to: data.assign_to || '',
+        dateDebut: data.dateDebut || null,
         dateEcheance: data.dateEcheance || null
       };
       
+      let savedTask;
       if (selectedTask) {
-        await api.put(`/v1/task/${selectedTask.id}`, payload);
+        const res = await api.put(`/v1/task/${selectedTask.id}`, payload);
+        savedTask = selectedTask; // L'ID reste le même
       } else {
-        await api.post(`/v1/task/${project.id}`, payload);
+        const res = await api.post(`/v1/task/${project.id}`, payload);
+        // Si la création réussit, on doit recharger les tâches pour avoir le nouvel ID si on voulait lier des dépendances immédiatement.
+        // Mais comme l'API POST renvoie l'URI dans Location header et non l'objet, c'est complexe de lier à la création.
+        // On va se contenter de lier les dépendances uniquement en mode édition pour le moment, ou on les lie par nom.
+      }
+
+      // Gestion des dépendances (seulement en édition pour l'instant car on a besoin de l'ID du successeur)
+      if (selectedTask) {
+        const currentPredecessors = dependencies
+          .filter(d => d.successorId === selectedTask.id)
+          .map(d => d.predecessorId);
+        
+        // Supprimer celles qui ont été décochées
+        const toDelete = dependencies.filter(d => d.successorId === selectedTask.id && !selectedPredecessors.includes(d.predecessorId));
+        for (let dep of toDelete) {
+          try { await api.delete(`/v1/tasks/dependencies/${dep.dependencyId}`); } catch(e) {}
+        }
+
+        // Ajouter les nouvelles
+        const toAdd = selectedPredecessors.filter(pId => !currentPredecessors.includes(pId));
+        for (let pId of toAdd) {
+          try { await api.post(`/v1/tasks/dependencies`, { predecessorId: pId, successorId: selectedTask.id, projectId: project.id }); } catch(e) {}
+        }
       }
       
       setIsTaskModalOpen(false);
@@ -412,8 +473,36 @@ const ProjectDetail = () => {
         </div>
       </div>
 
+      {/* Tabs Vue */}
+      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit mt-2 mb-6 border border-slate-200">
+        <button 
+          onClick={() => setViewMode('kanban')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all ${viewMode === 'kanban' ? 'bg-white text-primary-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          <AlignLeft className="w-4 h-4" />
+          Tableau Kanban
+        </button>
+        <button 
+          onClick={() => setViewMode('gantt')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all ${viewMode === 'gantt' ? 'bg-white text-primary-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          <Network className="w-4 h-4" />
+          Gantt & Dépendances
+        </button>
+      </div>
+
+      {viewMode === 'gantt' ? (
+        <GanttView 
+          tasks={tasks} 
+          dependencies={dependencies} 
+          projectId={id} 
+          onTaskClick={openTaskModal} 
+          refreshData={fetchProjectData} 
+        />
+      ) : (
+      <>
       {/* Kanban Board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         
         {/* Colonne À Faire */}
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col h-[600px] shadow-sm">
@@ -588,6 +677,8 @@ const ProjectDetail = () => {
         </div>
 
       </div>
+      </>
+      )}
 
       {/* Modal Membres */}
       {isMembersModalOpen && (
@@ -725,17 +816,62 @@ const ProjectDetail = () => {
                 />
                 {errors.assign_to && <p className="text-red-500 text-xs mt-1">{errors.assign_to.message}</p>}
               </div>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />Date d'échéance <span className="text-slate-400 font-normal">- Optionnel</span></span>
-                </label>
-                <input 
-                  type="date"
-                  {...register('dateEcheance')} 
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <p className="text-xs text-slate-400 mt-1">Si dépassée, la tâche passera automatiquement en &quot;En Retard&quot;.</p>
+              <div className="mb-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />Date de début</span>
+                  </label>
+                  <input 
+                    type="date"
+                    {...register('dateDebut')} 
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />Date d'échéance</span>
+                  </label>
+                  <input 
+                    type="date"
+                    {...register('dateEcheance')} 
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
               </div>
+
+              {/* Sélection des dépendances (prédécesseurs) */}
+              {selectedTask && tasks.length > 1 && (
+                <div className="mb-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                  <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                    <Network className="w-4 h-4 text-primary-600" />
+                    Dépendances (Tâches Préalables)
+                  </label>
+                  <p className="text-xs text-slate-500 mb-3">Sélectionnez les tâches qui doivent être terminées avant de commencer celle-ci.</p>
+                  <div className="max-h-32 overflow-y-auto space-y-2 custom-scrollbar pr-2">
+                    {tasks.filter(t => t.id !== selectedTask.id).map(t => (
+                      <label key={t.id} className="flex items-start gap-2 cursor-pointer group">
+                        <input 
+                          type="checkbox" 
+                          className="mt-1 rounded text-primary-600 focus:ring-primary-500"
+                          checked={selectedPredecessors.includes(t.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedPredecessors([...selectedPredecessors, t.id]);
+                            } else {
+                              setSelectedPredecessors(selectedPredecessors.filter(id => id !== t.id));
+                            }
+                          }}
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-slate-700 group-hover:text-primary-600 transition-colors">{t.title}</p>
+                          <p className="text-xs text-slate-400">{getStatusLabel(t.status)}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end gap-3 mb-2">
                 <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg transition-colors">
                   Annuler
