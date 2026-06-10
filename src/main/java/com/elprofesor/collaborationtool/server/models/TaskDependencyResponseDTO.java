@@ -11,6 +11,7 @@ public class TaskDependencyResponseDTO {
     private UUID dependencyId;
     private UUID predecessorId;
     private UUID successorId;
+    private UUID projectId;
 
     public UUID getDependencyId() {
         return dependencyId;
@@ -36,11 +37,19 @@ public class TaskDependencyResponseDTO {
         this.successorId = successorId;
     }
 
+    public UUID getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(UUID projectId) {
+        this.projectId = projectId;
+    }
+
     @Override
     public final boolean equals(Object o) {
         if (!(o instanceof TaskDependencyResponseDTO that)) return false;
 
-        return Objects.equals(getDependencyId(), that.getDependencyId()) && Objects.equals(getPredecessorId(), that.getPredecessorId()) && Objects.equals(getSuccessorId(), that.getSuccessorId());
+        return Objects.equals(getDependencyId(), that.getDependencyId()) && Objects.equals(getPredecessorId(), that.getPredecessorId()) && Objects.equals(getSuccessorId(), that.getSuccessorId()) && Objects.equals(getProjectId(), that.getProjectId());
     }
 
     @Override
@@ -48,6 +57,7 @@ public class TaskDependencyResponseDTO {
         int result = Objects.hashCode(getDependencyId());
         result = 31 * result + Objects.hashCode(getPredecessorId());
         result = 31 * result + Objects.hashCode(getSuccessorId());
+        result = 31 * result + Objects.hashCode(getProjectId());
         return result;
     }
 
@@ -57,6 +67,7 @@ public class TaskDependencyResponseDTO {
                 "dependencyId=" + dependencyId +
                 ", predecessorId=" + predecessorId +
                 ", successorId=" + successorId +
+                ", projectId=" + projectId +
                 '}';
     }
 }

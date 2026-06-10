@@ -17,6 +17,8 @@ public class TaskRequestDTO {
     private String attachmentUrl;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate dateEcheance;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate dateDebut;
 
 
     public String getTitle() {
@@ -75,12 +77,19 @@ public class TaskRequestDTO {
         this.dateEcheance = dateEcheance;
     }
 
+    public LocalDate getDateDebut() {
+        return dateDebut;
+    }
+
+    public void setDateDebut(LocalDate dateDebut) {
+        this.dateDebut = dateDebut;
+    }
 
     @Override
     public final boolean equals(Object o) {
         if (!(o instanceof TaskRequestDTO that)) return false;
 
-        return Objects.equals(getProjectName(), that.getProjectName()) && Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && getStatus() == that.getStatus() && Objects.equals(getAssign_to(), that.getAssign_to()) && Objects.equals(getAttachmentUrl(), that.getAttachmentUrl()) && Objects.equals(getDateEcheance(), that.getDateEcheance());
+        return Objects.equals(getProjectName(), that.getProjectName()) && Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && getStatus() == that.getStatus() && Objects.equals(getAssign_to(), that.getAssign_to()) && Objects.equals(getAttachmentUrl(), that.getAttachmentUrl()) && Objects.equals(getDateEcheance(), that.getDateEcheance()) && Objects.equals(getDateDebut(), that.getDateDebut());
     }
 
     @Override
@@ -92,6 +101,7 @@ public class TaskRequestDTO {
         result = 31 * result + Objects.hashCode(getAssign_to());
         result = 31 * result + Objects.hashCode(getAttachmentUrl());
         result = 31 * result + Objects.hashCode(getDateEcheance());
+        result = 31 * result + Objects.hashCode(getDateDebut());
         return result;
     }
 
@@ -104,7 +114,8 @@ public class TaskRequestDTO {
                 ", status=" + status +
                 ", assign_to='" + assign_to + '\'' +
                 ", attachmentUrl='" + attachmentUrl + '\'' +
-                ", date_echeance=" + dateEcheance +
+                ", dateEcheance=" + dateEcheance +
+                ", dateDebut=" + dateDebut +
                 '}';
     }
 }
