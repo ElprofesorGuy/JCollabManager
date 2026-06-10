@@ -95,16 +95,9 @@ public class TaskServiceJPA implements TaskService {
     public TaskResponseDTO saveNewTask(UUID projectId, TaskRequestDTO taskRequestDTO, Users currentUser) {
         Optional<Project> projet = projectRepository.findById(projectId);
         Optional<Users> assignee = Optional.empty();
-        //TaskDependency dependency = taskDependencyMapper.dependencyDtoToTaskDependency(dependencyRequestDTO);
         Task taskTosave = taskMapper.taskRequestDtoToTask(taskRequestDTO);
         taskTosave.setDateDebut(taskRequestDTO.getDateDebut());
         taskTosave.setProject(projectRepository.findByTitleContainingIgnoreCase(taskRequestDTO.getProjectName()));
-        /*Optional<Task> pred = taskRepository.findById(dependencyRequestDTO.getPredecessorId());
-        Optional<Task> succ = taskRepository.findById(dependencyRequestDTO.getSuccessorId());
-        if(pred.isPresent() && succ.isPresent()){
-            taskTosave.addPredecessors(pred.get());
-            taskTosave.addSuccesor(succ.get());
-        }*/
         if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {//Si la chaine assign_to n'est pas vide même après suppression des espaces
             assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());//On récupère l'utilisateur à qui la tâche sera assignée par son email
             if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssign_to());//On fait une recherche de l'utilisateur par son nom

@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,13 +27,19 @@ public class DependencyServiceJPA implements DependencyService{
     public TaskDependencyResponseDTO addDependency(TaskDependencyRequestDTO dependencyRequestDTO){
         Task pred = taskRepository.findById(dependencyRequestDTO.getPredecessorId()).orElseThrow(() -> new NotFoundException("Tâche inexistante"));
         Task succ = taskRepository.findById(dependencyRequestDTO.getSuccessorId()).orElseThrow(() -> new NotFoundException("Tâche inexistante"));
-        TaskDependency savedTaskDependency = TaskDependency.builder()
-                .predecessor(pred)
-                .successor(succ)
-                .build();
-        dependencyRepository.save(savedTaskDependency);
+        if(pred.getProject().equals(succ.getProject())){
+            TaskDependency savedTaskDependency = TaskDependency.builder()
+                    .predecessor(pred)
+                    .successor(succ)
+                    .projectId(pred.getProject().getId())
+                    .build();
+            dependencyRepository.save(savedTaskDependency);
 
-        return dependencyMapper.taskDependencyToTaskDependencyResponseDTO(savedTaskDependency);
+            return dependencyMapper.taskDependencyToTaskDependencyResponseDTO(savedTaskDependency);
+        }else{
+            throw new IllegalArgumentException("Les deux tâches n'appatiennent pas au même projet");
+        }
+
     }
 
     @Override
@@ -46,8 +53,8 @@ public class DependencyServiceJPA implements DependencyService{
     }
 
     @Override
-    public List<TaskDependencyResponseDTO> getProjetDependencies() {
-        return dependencyRepository.findAll()
+    public List<TaskDependencyResponseDTO> getProjetDependencies(UUID projectId) {
+        return dependencyRepository.findByProjectId(projectId)
                 .stream()
                 .map(dependencyMapper::taskDependencyToTaskDependencyResponseDTO)
                 .collect(Collectors.toList());

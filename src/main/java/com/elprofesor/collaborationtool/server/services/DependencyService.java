@@ -4,9 +4,10 @@ import com.elprofesor.collaborationtool.server.models.TaskDependencyRequestDTO;
 import com.elprofesor.collaborationtool.server.models.TaskDependencyResponseDTO;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface DependencyService {
     TaskDependencyResponseDTO addDependency(TaskDependencyRequestDTO dependencyRequestDTO);
     boolean deleteDependency(TaskDependencyRequestDTO dependencyRequestDTO);
-    List<TaskDependencyResponseDTO> getProjetDependencies();
+    List<TaskDependencyResponseDTO> getProjetDependencies(UUID projectId);
 }
