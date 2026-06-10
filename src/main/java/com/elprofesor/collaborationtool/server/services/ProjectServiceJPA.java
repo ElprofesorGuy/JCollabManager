@@ -36,6 +36,7 @@ public class ProjectServiceJPA implements ProjectService {
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
     private final UserMapper userMapper;
+    private final NotificationService notificationService;
 
     @Override
     public List<ProjectResponseDTO> listProjects() {
@@ -90,6 +91,13 @@ public class ProjectServiceJPA implements ProjectService {
                 throw new AccessDeniedException("Vous n'êtes ni l'ADMIN ni le owner de ce projet");
             }
             foundProject.setUpdate_date(LocalDate.now());
+            NotificationRequestDTO dto = NotificationRequestDTO.builder()
+                    .type(NotificationType.PROJET_MODIFIE)
+                    .message("Les informations sur un projet ont été mises à jour")
+                    .recipientUsername(foundProject.getOwner().getUsername())
+                    .targetUrl("/projects/" + foundProject.getId())
+                    .build();
+            notificationService.saveNewNotification(dto);
             Project savedProject = projectRepository.save(foundProject);
             atomicReference.set(Optional.of(projectMapper.projectToProjectRequestDto(savedProject)));
         }, () -> {

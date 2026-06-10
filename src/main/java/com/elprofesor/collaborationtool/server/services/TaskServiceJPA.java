@@ -4,13 +4,14 @@ import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
 import com.elprofesor.collaborationtool.server.entities.Project;
 import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.entities.Users;
+import com.elprofesor.collaborationtool.server.mapper.TaskDependencyMapper;
 import com.elprofesor.collaborationtool.server.mapper.TaskMapper;
 import com.elprofesor.collaborationtool.server.mapper.UserMapper;
 import com.elprofesor.collaborationtool.server.models.*;
 import com.elprofesor.collaborationtool.server.repositories.ProjectRepository;
+import com.elprofesor.collaborationtool.server.repositories.TaskDependencyRepository;
 import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
-import jdk.jshell.Snippet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -34,8 +35,10 @@ public class TaskServiceJPA implements TaskService {
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
     private final UserMapper userMapper;
+    private final TaskDependencyMapper taskDependencyMapper;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
+    private final TaskDependencyRepository dependencyRepository;
     private final FileStorageService fileStorageService;
     private final static int DEFAULT_PAGE = 0;
     private final static int DEFAULT_PAGE_SIZE = 20;
@@ -92,11 +95,16 @@ public class TaskServiceJPA implements TaskService {
     public TaskResponseDTO saveNewTask(UUID projectId, TaskRequestDTO taskRequestDTO, Users currentUser) {
         Optional<Project> projet = projectRepository.findById(projectId);
         Optional<Users> assignee = Optional.empty();
-        System.out.println("Assigné à : " + taskRequestDTO.getAssign_to());
+        //TaskDependency dependency = taskDependencyMapper.dependencyDtoToTaskDependency(dependencyRequestDTO);
         Task taskTosave = taskMapper.taskRequestDtoToTask(taskRequestDTO);
-        //System.out.println("Id de la tâche : " + taskTosave.getId());
-        //System.out.println("Statut de la tâche : " + taskTosave.getStatus());
+        taskTosave.setDateDebut(taskRequestDTO.getDateDebut());
         taskTosave.setProject(projectRepository.findByTitleContainingIgnoreCase(taskRequestDTO.getProjectName()));
+        /*Optional<Task> pred = taskRepository.findById(dependencyRequestDTO.getPredecessorId());
+        Optional<Task> succ = taskRepository.findById(dependencyRequestDTO.getSuccessorId());
+        if(pred.isPresent() && succ.isPresent()){
+            taskTosave.addPredecessors(pred.get());
+            taskTosave.addSuccesor(succ.get());
+        }*/
         if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {//Si la chaine assign_to n'est pas vide même après suppression des espaces
             assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());//On récupère l'utilisateur à qui la tâche sera assignée par son email
             if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssign_to());//On fait une recherche de l'utilisateur par son nom
@@ -152,8 +160,10 @@ public class TaskServiceJPA implements TaskService {
                         throw new IllegalArgumentException("Champ dateEcheance invalide : choisissez une date ultérieure à la date actuelle");
                     }else{
                         foundTask.setDateEcheance(taskRequestDTO.getDateEcheance());
-                        System.out.println("Date echéance : " + foundTask.getDateEcheance());
                     }
+                }
+                if(taskRequestDTO.getDateDebut() != null && taskRequestDTO.getDateDebut().isBefore(taskRequestDTO.getDateEcheance())){
+                    foundTask.setDateDebut(taskRequestDTO.getDateDebut());
                 }
                 if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {
                     Optional<Users> assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());
