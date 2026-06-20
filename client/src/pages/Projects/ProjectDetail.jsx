@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Layers, ArrowLeft, Plus, Loader2, Users, Trash2, UserPlus, AlertCircle, Settings, Edit2, AlertTriangle, Calendar, Paperclip, Download, Upload } from 'lucide-react';
+import { Layers, ArrowLeft, Plus, Loader2, Users, Trash2, UserPlus, AlertCircle, Settings, Edit2, AlertTriangle, Calendar, Paperclip, Download, Upload, CheckCircle } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import api from '../../api/axiosConfig';
 import { useForm } from 'react-hook-form';
@@ -42,6 +42,28 @@ const formatDate = (dateEcheance) => {
   const parts = String(dateEcheance).split('-');
   if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
   return dateEcheance;
+};
+
+const parseDateToObj = (dateField) => {
+  if (!dateField) return null;
+  if (Array.isArray(dateField)) {
+    const [y, m, d] = dateField;
+    return new Date(y, m - 1, d);
+  }
+  const parts = String(dateField).split('-');
+  if (parts.length === 3) {
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  }
+  return new Date(dateField);
+};
+
+const isSubmissionLate = (subDate, echDate) => {
+  if (!subDate || !echDate) return false;
+  const s = parseDateToObj(subDate);
+  const e = parseDateToObj(echDate);
+  s.setHours(0,0,0,0);
+  e.setHours(0,0,0,0);
+  return s > e;
 };
 
 const projectSchema = z.object({
@@ -421,50 +443,50 @@ const ProjectDetail = () => {
   const tasksOverdue = tasks.filter(t => t.status === 'OVERDUE');
 
   return (
-    <div className="animate-fade-in">
-      <div className="mb-6">
-        <Link to="/projects" className="inline-flex items-center gap-2 text-slate-500 hover:text-primary-600 transition-colors mb-4 text-sm font-medium">
+    <div className="animate-fade-in space-y-6 pb-12">
+      <div>
+        <Link to="/projects" className="inline-flex items-center gap-2 text-slate-400 hover:text-primary-400 transition-colors mb-4 text-sm font-semibold">
           <ArrowLeft className="w-4 h-4" />
           Retour aux projets
         </Link>
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
-              <Layers className="w-8 h-8 text-primary-600" />
+            <h1 className="text-3xl font-extrabold text-white flex items-center gap-3">
+              <Layers className="w-8 h-8 text-primary-400" />
               {project.title}
               {canEdit && (
-                <div className="flex gap-1 ml-4 border-l pl-4 border-slate-200">
-                  <button onClick={openProjectModal} className="text-slate-400 hover:text-primary-600 p-1.5 transition-colors" title="Modifier le projet">
+                <div className="flex gap-1.5 ml-4 border-l pl-4 border-slate-800">
+                  <button onClick={openProjectModal} className="text-slate-400 hover:text-primary-400 p-1.5 transition-colors" title="Modifier le projet">
                     <Edit2 className="w-5 h-5" />
                   </button>
                   {isOwner && (
-                    <button onClick={() => setIsDeleteProjectModalOpen(true)} className="text-slate-400 hover:text-red-600 p-1.5 transition-colors" title="Supprimer le projet">
+                    <button onClick={() => setIsDeleteProjectModalOpen(true)} className="text-slate-400 hover:text-rose-400 p-1.5 transition-colors" title="Supprimer le projet">
                       <Trash2 className="w-5 h-5" />
                     </button>
                   )}
                 </div>
               )}
             </h1>
-            <p className="text-sm font-medium text-primary-600 mt-2 bg-primary-50 px-3 py-1 rounded-full w-fit">Chef de projet : {project.ownerName || project.ownerEmail.split('@')[0]}</p>
-            <p className="text-slate-500 mt-3 max-w-2xl">{project.description}</p>
+            <p className="text-xs font-semibold text-primary-300 mt-2 bg-primary-500/10 border border-primary-500/20 px-3.5 py-1 rounded-full w-fit">Chef de projet : {project.ownerName || (project.ownerEmail ? project.ownerEmail.split('@')[0] : 'Inconnu')}</p>
+            <p className="text-slate-400 mt-3 max-w-2xl text-sm leading-relaxed">{project.description}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2.5">
             <button 
               onClick={exportToPDF}
-              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm text-sm font-medium"
+              className="flex items-center gap-2 bg-[#121824]/60 border border-[#1f293d] hover:border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl transition-all shadow-sm text-sm font-semibold"
             >
               Exporter PDF
             </button>
             <button 
               onClick={openMembersModal}
-              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm text-sm font-medium"
+              className="flex items-center gap-2 bg-[#121824]/60 border border-[#1f293d] hover:border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl transition-all shadow-sm text-sm font-semibold"
             >
               <Users className="w-4 h-4" />
               Membres
             </button>
             <button 
               onClick={() => openTaskModal()}
-              className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors shadow-sm text-sm font-medium"
+              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-500 text-white px-4 py-2 rounded-xl transition-all shadow-[0_0_15px_rgba(139,92,246,0.2)] text-sm font-semibold"
             >
               <Plus className="w-4 h-4" />
               Nouvelle tâche
@@ -474,17 +496,17 @@ const ProjectDetail = () => {
       </div>
 
       {/* Tabs Vue */}
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit mt-2 mb-6 border border-slate-200">
+      <div className="flex items-center gap-1 bg-[#121824]/60 border border-[#1f293d] p-1 rounded-xl w-fit mt-3 mb-8 shadow-sm">
         <button 
           onClick={() => setViewMode('kanban')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all ${viewMode === 'kanban' ? 'bg-white text-primary-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === 'kanban' ? 'bg-primary-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
         >
           <AlignLeft className="w-4 h-4" />
           Tableau Kanban
         </button>
         <button 
           onClick={() => setViewMode('gantt')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all ${viewMode === 'gantt' ? 'bg-white text-primary-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === 'gantt' ? 'bg-primary-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
         >
           <Network className="w-4 h-4" />
           Gantt & Dépendances
@@ -505,38 +527,38 @@ const ProjectDetail = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         
         {/* Colonne À Faire */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col h-[600px] shadow-sm">
-          <h3 className="font-bold text-slate-700 mb-4 flex items-center justify-between">
+        <div className="bg-[#121824]/30 border border-[#1f293d] rounded-2xl p-4 flex flex-col h-[600px] shadow-lg">
+          <h3 className="font-bold text-slate-300 mb-4 flex items-center justify-between">
             <span>À Faire</span>
-            <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{tasksToDo.length}</span>
+            <span className="bg-slate-800 text-slate-400 border border-slate-700 text-xs px-2.5 py-0.5 rounded-full font-bold">{tasksToDo.length}</span>
           </h3>
-          <div className="flex-grow overflow-y-auto space-y-3">
+          <div className="flex-grow overflow-y-auto space-y-3 custom-scrollbar pr-1">
             {tasksToDo.length === 0 ? (
-              <p className="text-slate-400 text-sm text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">Aucune tâche</p>
+              <p className="text-slate-500 text-xs text-center py-4 border border-dashed border-slate-800 rounded-xl">Aucune tâche</p>
             ) : (
               tasksToDo.map(task => (
-                <div onClick={() => openTaskModal(task)} key={task.id} className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:border-slate-400 transition-colors cursor-pointer border-l-4 border-l-slate-400 group/task relative">
+                <div onClick={() => openTaskModal(task)} key={task.id} className="bg-[#121824]/50 p-4 rounded-xl border border-[#1f293d] hover:border-slate-600 transition-all cursor-pointer border-l-4 border-l-slate-500 hover:shadow-lg hover:shadow-primary-500/5 hover:-translate-y-0.5 group/task relative">
                   <div className="flex justify-between items-start">
-                    <h4 className="font-bold text-slate-800 text-sm mb-1">{task.title}</h4>
+                    <h4 className="font-bold text-slate-200 text-sm mb-1 group-hover/task:text-white transition-colors">{task.title}</h4>
                     {isOwner && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
-                        className="text-slate-400 hover:text-red-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
+                        className="text-slate-500 hover:text-rose-400 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
                         title="Supprimer la tâche"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  <p className="text-slate-500 text-xs line-clamp-2 mb-2">{task.description}</p>
-                  <div className="flex flex-wrap items-center gap-1 mt-auto">
+                  <p className="text-slate-400 text-xs line-clamp-2 mb-3 leading-relaxed">{task.description}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-auto">
                     {task.assign_to && (
-                      <div className="flex items-center gap-1 text-xs text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-primary-400 bg-primary-500/10 border border-primary-500/20 px-2 py-0.5 rounded-md">
                         <Users className="w-3 h-3" />
                         <span>{task.assign_to.split('@')[0]}</span>
                       </div>
                     )}
-                    <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${task.dateEcheance ? 'text-slate-600 bg-slate-100' : 'text-slate-400 bg-slate-50 italic'}`}>
+                    <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${task.dateEcheance ? 'text-slate-400 bg-slate-800/80 border border-slate-700' : 'text-slate-500 bg-slate-900/50 italic border border-slate-800'}`}>
                       <Calendar className="w-3 h-3" />
                       <span>{task.dateEcheance ? formatDate(task.dateEcheance) : 'Pas d\'échéance'}</span>
                     </div>
@@ -548,38 +570,38 @@ const ProjectDetail = () => {
         </div>
 
         {/* Colonne En Cours */}
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col h-[600px] shadow-sm">
-          <h3 className="font-bold text-blue-900 mb-4 flex items-center justify-between">
+        <div className="bg-[#121824]/30 border border-[#1f293d] rounded-2xl p-4 flex flex-col h-[600px] shadow-lg">
+          <h3 className="font-bold text-slate-300 mb-4 flex items-center justify-between">
             <span>En Cours</span>
-            <span className="bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full text-xs">{tasksInProgress.length}</span>
+            <span className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs px-2.5 py-0.5 rounded-full font-bold">{tasksInProgress.length}</span>
           </h3>
-          <div className="flex-grow overflow-y-auto space-y-3">
+          <div className="flex-grow overflow-y-auto space-y-3 custom-scrollbar pr-1">
             {tasksInProgress.length === 0 ? (
-              <p className="text-blue-400/70 text-sm text-center py-4 border-2 border-dashed border-blue-200 rounded-lg">Aucune tâche</p>
+              <p className="text-slate-500 text-xs text-center py-4 border border-dashed border-slate-800 rounded-xl">Aucune tâche</p>
             ) : (
               tasksInProgress.map(task => (
-                <div onClick={() => openTaskModal(task)} key={task.id} className="bg-white p-4 rounded-lg shadow-sm border border-blue-200 hover:border-blue-400 transition-colors cursor-pointer border-l-4 border-l-blue-500 group/task relative">
+                <div onClick={() => openTaskModal(task)} key={task.id} className="bg-[#121824]/50 p-4 rounded-xl border border-[#1f293d] hover:border-slate-600 transition-all cursor-pointer border-l-4 border-l-cyan-500 hover:shadow-lg hover:shadow-cyan-500/5 hover:-translate-y-0.5 group/task relative">
                   <div className="flex justify-between items-start">
-                    <h4 className="font-bold text-slate-800 text-sm mb-1">{task.title}</h4>
+                    <h4 className="font-bold text-slate-200 text-sm mb-1 group-hover/task:text-white transition-colors">{task.title}</h4>
                     {isOwner && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
-                        className="text-blue-300 hover:text-red-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
+                        className="text-slate-500 hover:text-rose-400 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
                         title="Supprimer la tâche"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  <p className="text-slate-500 text-xs line-clamp-2 mb-2">{task.description}</p>
-                  <div className="flex flex-wrap items-center gap-1 mt-auto">
+                  <p className="text-slate-400 text-xs line-clamp-2 mb-3 leading-relaxed">{task.description}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-auto">
                     {task.assign_to && (
-                      <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md">
                         <Users className="w-3 h-3" />
                         <span>{task.assign_to.split('@')[0]}</span>
                       </div>
                     )}
-                    <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${task.dateEcheance ? 'text-slate-600 bg-slate-100' : 'text-slate-400 bg-slate-50 italic'}`}>
+                    <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${task.dateEcheance ? 'text-slate-400 bg-slate-800/80 border border-slate-700' : 'text-slate-500 bg-slate-900/50 italic border border-slate-800'}`}>
                       <Calendar className="w-3 h-3" />
                       <span>{task.dateEcheance ? formatDate(task.dateEcheance) : 'Pas d\'échéance'}</span>
                     </div>
@@ -591,40 +613,64 @@ const ProjectDetail = () => {
         </div>
 
         {/* Colonne Terminé */}
-        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex flex-col h-[600px] shadow-sm">
-          <h3 className="font-bold text-emerald-900 mb-4 flex items-center justify-between">
+        <div className="bg-[#121824]/30 border border-[#1f293d] rounded-2xl p-4 flex flex-col h-[600px] shadow-lg">
+          <h3 className="font-bold text-slate-300 mb-4 flex items-center justify-between">
             <span>Terminé</span>
-            <span className="bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full text-xs">{tasksDone.length}</span>
+            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-2.5 py-0.5 rounded-full font-bold">{tasksDone.length}</span>
           </h3>
-          <div className="flex-grow overflow-y-auto space-y-3">
+          <div className="flex-grow overflow-y-auto space-y-3 custom-scrollbar pr-1">
             {tasksDone.length === 0 ? (
-              <p className="text-emerald-400/70 text-sm text-center py-4 border-2 border-dashed border-emerald-200 rounded-lg">Aucune tâche</p>
+              <p className="text-slate-500 text-xs text-center py-4 border border-dashed border-slate-800 rounded-xl">Aucune tâche</p>
             ) : (
               tasksDone.map(task => (
-                <div onClick={() => openTaskModal(task)} key={task.id} className="bg-white p-4 rounded-lg shadow-sm border border-emerald-200 hover:border-emerald-400 transition-colors cursor-pointer border-l-4 border-l-emerald-500 opacity-80 group/task relative">
+                <div onClick={() => openTaskModal(task)} key={task.id} className="bg-[#121824]/30 p-4 rounded-xl border border-[#1f293d] hover:border-slate-600 transition-all cursor-pointer border-l-4 border-l-emerald-500 opacity-60 hover:opacity-95 hover:shadow-lg hover:shadow-emerald-500/5 hover:-translate-y-0.5 group/task relative">
                   <div className="flex justify-between items-start">
-                    <h4 className="font-bold text-slate-800 text-sm mb-1 line-through decoration-slate-400">{task.title}</h4>
+                    <h4 className="font-bold text-slate-400 text-sm mb-1 line-through decoration-slate-600 group-hover/task:text-white transition-colors">{task.title}</h4>
                     {isOwner && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
-                        className="text-emerald-300 hover:text-red-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
+                        className="text-slate-500 hover:text-rose-400 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
                         title="Supprimer la tâche"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  <p className="text-slate-500 text-xs line-clamp-2 mb-2">{task.description}</p>
-                  <div className="flex flex-wrap items-center gap-1 mt-auto">
+                  <p className="text-slate-400 text-xs line-clamp-2 mb-3 leading-relaxed">{task.description}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-auto">
                     {task.assign_to && (
-                      <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full opacity-75">
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md opacity-75">
                         <Users className="w-3 h-3" />
                         <span>{task.assign_to.split('@')[0]}</span>
                       </div>
                     )}
-                    <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full opacity-75 ${task.dateEcheance ? 'text-emerald-700 bg-emerald-100' : 'text-slate-400 bg-slate-50 italic'}`}>
-                      <Calendar className="w-3 h-3" />
-                      <span>{task.dateEcheance ? formatDate(task.dateEcheance) : 'Pas d\'échéance'}</span>
+                    <div className="flex flex-col gap-1.5 w-full mt-2">
+                      {task.dateEcheance && (
+                        <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md opacity-75 text-slate-400 bg-slate-800/80 border border-slate-700 w-fit">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Échéance : {formatDate(task.dateEcheance)}</span>
+                        </div>
+                      )}
+                      {task.submissionDate ? (
+                        <div className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md w-fit ${
+                          isSubmissionLate(task.submissionDate, task.dateEcheance)
+                            ? 'text-rose-400 bg-rose-500/15 border border-rose-500/25'
+                            : 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/25'
+                        }`}>
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>
+                            Remis le {formatDate(task.submissionDate)}
+                            {isSubmissionLate(task.submissionDate, task.dateEcheance) && ' (En Retard)'}
+                          </span>
+                        </div>
+                      ) : (
+                        !task.dateEcheance && (
+                          <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md opacity-75 text-slate-500 bg-slate-900/50 italic border border-slate-800 w-fit">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>Pas d'échéance</span>
+                          </div>
+                        )
+                      )}
                     </div>
                   </div>
                 </div>
@@ -634,38 +680,38 @@ const ProjectDetail = () => {
         </div>
 
         {/* Colonne En Retard */}
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col h-[600px] shadow-sm">
-          <h3 className="font-bold text-red-900 mb-4 flex items-center justify-between">
-            <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-500" />En Retard</span>
-            <span className="bg-red-200 text-red-800 px-2 py-0.5 rounded-full text-xs">{tasksOverdue.length}</span>
+        <div className="bg-[#121824]/30 border border-[#1f293d] rounded-2xl p-4 flex flex-col h-[600px] shadow-lg">
+          <h3 className="font-bold text-slate-300 mb-4 flex items-center justify-between">
+            <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-rose-500" />En Retard</span>
+            <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs px-2.5 py-0.5 rounded-full font-bold">{tasksOverdue.length}</span>
           </h3>
-          <div className="flex-grow overflow-y-auto space-y-3">
+          <div className="flex-grow overflow-y-auto space-y-3 custom-scrollbar pr-1">
             {tasksOverdue.length === 0 ? (
-              <p className="text-red-400/70 text-sm text-center py-4 border-2 border-dashed border-red-200 rounded-lg">Aucune tâche</p>
+              <p className="text-slate-500 text-xs text-center py-4 border border-dashed border-slate-800 rounded-xl">Aucune tâche</p>
             ) : (
               tasksOverdue.map(task => (
-                <div onClick={() => openTaskModal(task)} key={task.id} className="bg-white p-4 rounded-lg shadow-sm border border-red-200 hover:border-red-400 transition-colors cursor-pointer border-l-4 border-l-red-500 group/task relative">
+                <div onClick={() => openTaskModal(task)} key={task.id} className="bg-[#121824]/50 p-4 rounded-xl border border-[#1f293d] hover:border-slate-600 transition-all cursor-pointer border-l-4 border-l-rose-500 hover:shadow-lg hover:shadow-rose-500/5 hover:-translate-y-0.5 group/task relative">
                   <div className="flex justify-between items-start">
-                    <h4 className="font-bold text-red-800 text-sm mb-1">{task.title}</h4>
+                    <h4 className="font-bold text-rose-400 text-sm mb-1 group-hover/task:text-rose-300 transition-colors">{task.title}</h4>
                     {isOwner && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
-                        className="text-red-300 hover:text-red-600 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
+                        className="text-slate-500 hover:text-rose-400 opacity-0 group-hover/task:opacity-100 transition-opacity p-1"
                         title="Supprimer la tâche"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  <p className="text-slate-500 text-xs line-clamp-2 mb-2">{task.description}</p>
-                  <div className="flex flex-wrap items-center gap-1 mt-auto">
+                  <p className="text-slate-400 text-xs line-clamp-2 mb-3 leading-relaxed">{task.description}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-auto">
                     {task.assign_to && (
-                      <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md">
                         <Users className="w-3 h-3" />
                         <span>{task.assign_to.split('@')[0]}</span>
                       </div>
                     )}
-                    <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold ${task.dateEcheance ? 'text-red-700 bg-red-100' : 'text-slate-400 bg-slate-50 italic font-normal'}`}>
+                    <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${task.dateEcheance ? 'text-rose-400 bg-rose-500/15 border border-rose-500/25 font-bold' : 'text-slate-500 bg-slate-900/50 italic border border-slate-800'}`}>
                       <Calendar className="w-3 h-3" />
                       <span>{task.dateEcheance ? formatDate(task.dateEcheance) : 'Pas d\'échéance'}</span>
                     </div>
@@ -682,18 +728,18 @@ const ProjectDetail = () => {
 
       {/* Modal Membres */}
       {isMembersModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <Users className="w-5 h-5 text-primary-600" />
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0f172a] border border-[#1f293d] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="px-6 py-4 border-b border-[#1f293d] flex justify-between items-center bg-[#121824]/50">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary-400" />
                 Membres du projet
               </h2>
-              <button onClick={() => setIsMembersModalOpen(false)} className="text-slate-400 hover:text-slate-600">×</button>
+              <button onClick={() => setIsMembersModalOpen(false)} className="text-slate-400 hover:text-white text-xl">×</button>
             </div>
             <div className="p-6">
               {memberError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm flex items-start gap-2">
+                <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{memberError}</span>
                 </div>
@@ -706,12 +752,12 @@ const ProjectDetail = () => {
                   placeholder="Email du nouveau membre..." 
                   value={newMemberEmail}
                   onChange={(e) => setNewMemberEmail(e.target.value)}
-                  className="flex-grow px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                  className="flex-grow px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600"
                 />
                 <button 
                   type="submit" 
                   disabled={loadingMembers || !newMemberEmail}
-                  className="bg-primary-600 text-white px-3 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center gap-1 text-sm font-medium"
+                  className="bg-primary-600 hover:bg-primary-500 text-white px-4 py-2 rounded-xl transition-all shadow-md disabled:opacity-50 flex items-center gap-1.5 text-sm font-semibold shrink-0"
                 >
                   <UserPlus className="w-4 h-4" />
                   Ajouter
@@ -720,29 +766,29 @@ const ProjectDetail = () => {
 
               {loadingMembers && members.length === 0 ? (
                 <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary-600" />
+                  <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
                 </div>
               ) : members.length === 0 ? (
-                <p className="text-slate-500 text-center py-4">Aucun membre trouvé.</p>
+                <p className="text-slate-500 text-center py-4 text-sm">Aucun membre trouvé.</p>
               ) : (
-                <ul className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                <ul className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                   {members.map(member => (
-                    <li key={member.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 group hover:border-slate-200 transition-colors">
+                    <li key={member.id} className="flex items-center justify-between p-3 bg-[#121824]/40 rounded-xl border border-[#1f293d] group hover:border-slate-700 transition-colors">
                       <div>
-                        <p className="font-medium text-slate-800 text-sm">{member.username || member.email.split('@')[0]}</p>
+                        <p className="font-semibold text-slate-200 text-sm">{member.username || (member.email ? member.email.split('@')[0] : 'Membre')}</p>
                         <p className="text-xs text-slate-500">{member.email}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         {project.ownerEmail === member.email ? (
-                          <span className="bg-primary-100 text-primary-700 text-xs font-bold px-2 py-1 rounded">Chef de projet</span>
+                          <span className="bg-primary-500/15 text-primary-400 border border-primary-500/25 text-[10px] font-bold px-2 py-1 rounded">Chef de projet</span>
                         ) : (
                           <>
-                            <span className="bg-slate-200 text-slate-600 text-xs font-bold px-2 py-1 rounded">Membre</span>
+                            <span className="bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-bold px-2 py-1 rounded">Membre</span>
                             <button 
                               onClick={() => onRemoveMember(member.email)}
                               disabled={loadingMembers}
                               title="Retirer ce membre"
-                              className="text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                              className="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -760,27 +806,27 @@ const ProjectDetail = () => {
 
       {/* Modal Création Tâche */}
       {isTaskModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
-              <h2 className="text-xl font-bold text-slate-800">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0f172a] border border-[#1f293d] rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
+            <div className="px-6 py-4 border-b border-[#1f293d] flex justify-between items-center bg-[#121824]/50 shrink-0">
+              <h2 className="text-lg font-bold text-white">
                 {selectedTask ? 'Modifier la Tâche' : 'Nouvelle Tâche'}
               </h2>
-              <button onClick={() => setIsTaskModalOpen(false)} className="text-slate-400 hover:text-slate-600">×</button>
+              <button onClick={() => setIsTaskModalOpen(false)} className="text-slate-400 hover:text-white text-xl">×</button>
             </div>
             <div className="overflow-y-auto flex-1 custom-scrollbar">
-              <form onSubmit={handleSubmit(onTaskSubmit)} className="p-6">
+              <form onSubmit={handleSubmit(onTaskSubmit)} className="p-6 space-y-4">
               {taskError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm flex items-start gap-2">
+                <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{taskError}</span>
                 </div>
               )}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Statut</label>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Statut</label>
                 <select 
                   {...register('status')}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                  className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm"
                 >
                   <option value="TO_DO">À Faire</option>
                   <option value="NOT_FINISH">En Cours</option>
@@ -788,71 +834,88 @@ const ProjectDetail = () => {
                   {selectedTask && <option value="OVERDUE">En Retard</option>}
                 </select>
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Titre de la tâche</label>
+              {selectedTask && selectedTask.submissionDate && (
+                <div className="bg-[#121824]/40 p-3.5 rounded-xl border border-[#1f293d] text-xs space-y-1.5">
+                  <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Informations de livraison</span>
+                  <div className="flex justify-between items-center font-semibold text-slate-300">
+                    <span>Date de remise :</span>
+                    <span className={
+                      isSubmissionLate(selectedTask.submissionDate, selectedTask.dateEcheance)
+                        ? 'text-rose-400 font-bold'
+                        : 'text-emerald-400 font-bold'
+                    }>
+                      {formatDate(selectedTask.submissionDate)}
+                      {isSubmissionLate(selectedTask.submissionDate, selectedTask.dateEcheance) && ' (En retard)'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Titre de la tâche</label>
                 <input 
                   {...register('title')} 
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.title ? 'border-red-500' : 'border-slate-300'}`}
+                  className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.title ? 'border-rose-500' : 'border-[#1f293d]'}`}
                   placeholder="Ex: Refonte du bouton de connexion"
                 />
-                {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
+                {errors.title && <p className="text-rose-400 text-xs mt-1">{errors.title.message}</p>}
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Description</label>
                 <textarea 
                   {...register('description')} 
                   rows={3}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.description ? 'border-red-500' : 'border-slate-300'}`}
+                  placeholder="Expliquez brièvement la tâche..."
+                  className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.description ? 'border-rose-500' : 'border-[#1f293d]'}`}
                 />
-                {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
+                {errors.description && <p className="text-rose-400 text-xs mt-1">{errors.description.message}</p>}
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Assigner à (Email) <span className="text-slate-400 font-normal">- Optionnel</span></label>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Assigner à (Email) <span className="text-slate-500 font-normal">- Optionnel</span></label>
                 <input 
                   type="email"
                   {...register('assign_to')} 
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.assign_to ? 'border-red-500' : 'border-slate-300'}`}
+                  className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.assign_to ? 'border-rose-400' : 'border-[#1f293d]'}`}
                   placeholder={project?.ownerEmail}
                 />
-                {errors.assign_to && <p className="text-red-500 text-xs mt-1">{errors.assign_to.message}</p>}
+                {errors.assign_to && <p className="text-rose-400 text-xs mt-1">{errors.assign_to.message}</p>}
               </div>
-              <div className="mb-4 grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
                     <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />Date de début</span>
                   </label>
                   <input 
                     type="date"
                     {...register('dateDebut')} 
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
                     <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />Date d'échéance</span>
                   </label>
                   <input 
                     type="date"
                     {...register('dateEcheance')} 
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm"
                   />
                 </div>
               </div>
 
               {/* Sélection des dépendances (prédécesseurs) */}
               {selectedTask && tasks.length > 1 && (
-                <div className="mb-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                  <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                    <Network className="w-4 h-4 text-primary-600" />
+                <div className="bg-[#121824]/40 p-4 rounded-xl border border-[#1f293d]">
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Network className="w-4 h-4 text-primary-400" />
                     Dépendances (Tâches Préalables)
                   </label>
-                  <p className="text-xs text-slate-500 mb-3">Sélectionnez les tâches qui doivent être terminées avant de commencer celle-ci.</p>
+                  <p className="text-[11px] text-slate-500 mb-3">Sélectionnez les tâches qui doivent être terminées avant de commencer celle-ci.</p>
                   <div className="max-h-32 overflow-y-auto space-y-2 custom-scrollbar pr-2">
                     {tasks.filter(t => t.id !== selectedTask.id).map(t => (
-                      <label key={t.id} className="flex items-start gap-2 cursor-pointer group">
+                      <label key={t.id} className="flex items-start gap-2.5 cursor-pointer group">
                         <input 
                           type="checkbox" 
-                          className="mt-1 rounded text-primary-600 focus:ring-primary-500"
+                          className="mt-1 rounded border-slate-700 bg-slate-900 text-primary-600 focus:ring-primary-500"
                           checked={selectedPredecessors.includes(t.id)}
                           onChange={(e) => {
                             if (e.target.checked) {
@@ -863,8 +926,8 @@ const ProjectDetail = () => {
                           }}
                         />
                         <div>
-                          <p className="text-sm font-medium text-slate-700 group-hover:text-primary-600 transition-colors">{t.title}</p>
-                          <p className="text-xs text-slate-400">{getStatusLabel(t.status)}</p>
+                          <p className="text-sm font-semibold text-slate-300 group-hover:text-primary-400 transition-colors">{t.title}</p>
+                          <p className="text-xs text-slate-500">{getStatusLabel(t.status)}</p>
                         </div>
                       </label>
                     ))}
@@ -872,11 +935,11 @@ const ProjectDetail = () => {
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 mb-2">
-                <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg transition-colors">
+              <div className="flex justify-end gap-3 pt-3 border-t border-[#1f293d]/50">
+                <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-400 font-semibold hover:bg-slate-800/50 rounded-xl transition-colors text-sm">
                   Annuler
                 </button>
-                <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center gap-2">
+                <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 text-sm shadow-md">
                   {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   {selectedTask ? 'Mettre à jour' : 'Créer la tâche'}
                 </button>
@@ -885,33 +948,33 @@ const ProjectDetail = () => {
             
             {/* Section Pièce jointe */}
             {selectedTask && (
-              <div className="px-6 pb-4 pt-2 border-t border-slate-100">
-                <h3 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
-                  <Paperclip className="w-4 h-4" />
+              <div className="px-6 pb-4 pt-4 border-t border-[#1f293d]">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Paperclip className="w-4 h-4 text-primary-400" />
                   Pièce jointe
                 </h3>
                 
                 {selectedTask.attachmentUrl ? (
-                  <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div className="flex items-center justify-between bg-[#121824]/40 p-3 rounded-xl border border-[#1f293d]">
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="p-2 bg-primary-100 text-primary-600 rounded">
+                      <div className="p-2.5 bg-primary-500/10 text-primary-400 rounded-lg">
                         <Paperclip className="w-5 h-5" />
                       </div>
-                      <span className="text-sm font-medium text-slate-700 truncate" title={selectedTask.attachmentUrl}>
+                      <span className="text-sm font-medium text-slate-300 truncate" title={selectedTask.attachmentUrl}>
                         {selectedTask.attachmentUrl.split('/').pop()}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
                       <a 
                         href={`http://localhost:9000/uploads/${selectedTask.attachmentUrl}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors"
                         title="Télécharger / Voir"
                       >
                         <Download className="w-4 h-4" />
                       </a>
-                      <label className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors cursor-pointer" title="Remplacer">
+                      <label className="p-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer" title="Remplacer">
                         {uploadingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                         <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploadingFile} />
                       </label>
@@ -919,7 +982,7 @@ const ProjectDetail = () => {
                         type="button"
                         onClick={handleFileDelete}
                         disabled={uploadingFile}
-                        className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                        className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"
                         title="Supprimer"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -927,17 +990,17 @@ const ProjectDetail = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex justify-center border-2 border-dashed border-slate-300 rounded-lg p-6 hover:bg-slate-50 transition-colors">
+                  <div className="flex justify-center border border-dashed border-[#1f293d] hover:border-slate-700 bg-[#121824]/20 hover:bg-[#121824]/40 rounded-xl p-6 transition-colors">
                     <label className="flex flex-col items-center gap-2 cursor-pointer w-full">
                       {uploadingFile ? (
-                        <Loader2 className="w-6 h-6 animate-spin text-primary-600" />
+                        <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
                       ) : (
                         <>
-                          <div className="p-2 bg-primary-50 text-primary-600 rounded-full">
+                          <div className="p-2.5 bg-primary-500/10 text-primary-400 rounded-xl">
                             <Upload className="w-6 h-6" />
                           </div>
-                          <span className="text-sm font-medium text-slate-600">Cliquez pour ajouter un fichier</span>
-                          <span className="text-xs text-slate-400">PDF, Images, etc. (max 10MB)</span>
+                          <span className="text-xs font-semibold text-slate-300">Cliquez pour ajouter un fichier</span>
+                          <span className="text-[10px] text-slate-500">PDF, Images, etc. (max 10MB)</span>
                         </>
                       )}
                       <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploadingFile} />
@@ -949,7 +1012,7 @@ const ProjectDetail = () => {
             
             {/* Commentaires de la tâche (seulement si la tâche existe déjà) */}
             {selectedTask && (
-              <div className="px-6 pb-6 pt-0">
+              <div className="px-6 pb-6 pt-2 border-t border-[#1f293d]/50">
                 <TaskComments taskId={selectedTask.id} />
               </div>
             )}
@@ -960,56 +1023,56 @@ const ProjectDetail = () => {
 
       {/* Modal Edition Projet */}
       {isProjectModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-800">Modifier le projet</h2>
-              <button onClick={() => setIsProjectModalOpen(false)} className="text-slate-400 hover:text-slate-600">×</button>
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0f172a] border border-[#1f293d] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="px-6 py-4 border-b border-[#1f293d] flex justify-between items-center bg-[#121824]/50">
+              <h2 className="text-lg font-bold text-white">Modifier le projet</h2>
+              <button onClick={() => setIsProjectModalOpen(false)} className="text-slate-400 hover:text-white text-xl">×</button>
             </div>
-            <form onSubmit={handleSubmitProject(onEditProjectSubmit)} className="p-6">
+            <form onSubmit={handleSubmitProject(onEditProjectSubmit)} className="p-6 space-y-5">
               {projectError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm flex items-start gap-2">
+                <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{projectError}</span>
                 </div>
               )}
               {isOwner && (
                 <>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Titre du projet</label>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Titre du projet</label>
                     <input 
                       {...registerProject('title')} 
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${projectErrors.title ? 'border-red-500' : 'border-slate-300'}`}
+                      className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm ${projectErrors.title ? 'border-rose-500' : 'border-[#1f293d]'}`}
                     />
-                    {projectErrors.title && <p className="text-red-500 text-xs mt-1">{projectErrors.title.message}</p>}
+                    {projectErrors.title && <p className="text-rose-400 text-xs mt-1">{projectErrors.title.message}</p>}
                   </div>
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Description</label>
                     <textarea 
                       {...registerProject('description')} 
                       rows={4}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${projectErrors.description ? 'border-red-500' : 'border-slate-300'}`}
+                      className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm ${projectErrors.description ? 'border-rose-500' : 'border-[#1f293d]'}`}
                     />
-                    {projectErrors.description && <p className="text-red-500 text-xs mt-1">{projectErrors.description.message}</p>}
+                    {projectErrors.description && <p className="text-rose-400 text-xs mt-1">{projectErrors.description.message}</p>}
                   </div>
                 </>
               )}
               {isAdmin && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email du Chef de projet (Owner)</label>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Email du Chef de projet (Owner)</label>
                   <input 
                     {...registerProject('ownerEmail')} 
                     type="email"
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${projectErrors.ownerEmail ? 'border-red-500' : 'border-slate-300'}`}
+                    className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm ${projectErrors.ownerEmail ? 'border-rose-500' : 'border-[#1f293d]'}`}
                   />
-                  {projectErrors.ownerEmail && <p className="text-red-500 text-xs mt-1">{projectErrors.ownerEmail.message}</p>}
+                  {projectErrors.ownerEmail && <p className="text-rose-400 text-xs mt-1">{projectErrors.ownerEmail.message}</p>}
                 </div>
               )}
-              <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setIsProjectModalOpen(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg transition-colors">
+              <div className="flex justify-end gap-3 pt-3 border-t border-[#1f293d]/50">
+                <button type="button" onClick={() => setIsProjectModalOpen(false)} className="px-4 py-2 text-slate-400 font-semibold hover:bg-slate-800/50 rounded-xl transition-colors text-sm">
                   Annuler
                 </button>
-                <button type="submit" disabled={isProjectSubmitting} className="px-4 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center gap-2">
+                <button type="submit" disabled={isProjectSubmitting} className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 text-sm shadow-md">
                   {isProjectSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   Sauvegarder
                 </button>
@@ -1021,24 +1084,24 @@ const ProjectDetail = () => {
 
       {/* Modal Suppression Projet */}
       {isDeleteProjectModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-red-50">
-              <h2 className="text-xl font-bold text-red-700 flex items-center gap-2">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0f172a] border border-rose-500/30 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="px-6 py-4 border-b border-rose-500/20 flex justify-between items-center bg-rose-950/20">
+              <h2 className="text-lg font-bold text-rose-400 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5" />
                 Supprimer le projet
               </h2>
-              <button onClick={() => setIsDeleteProjectModalOpen(false)} className="text-red-400 hover:text-red-600">×</button>
+              <button onClick={() => setIsDeleteProjectModalOpen(false)} className="text-rose-400 hover:text-rose-300 text-xl">×</button>
             </div>
             <div className="p-6">
-              <p className="text-slate-700 mb-6 text-sm">
-                Êtes-vous sûr de vouloir supprimer définitivement le projet <strong>{project?.title}</strong> ? Cette action est irréversible et supprimera toutes les tâches associées.
+              <p className="text-slate-300 mb-6 text-sm leading-relaxed">
+                Êtes-vous sûr de vouloir supprimer définitivement le projet <strong className="text-white">{project?.title}</strong> ? Cette action est irréversible et supprimera toutes les tâches associées.
               </p>
-              <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setIsDeleteProjectModalOpen(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors text-sm">
+              <div className="flex justify-end gap-3 pt-3 border-t border-[#1f293d]/50">
+                <button type="button" onClick={() => setIsDeleteProjectModalOpen(false)} className="px-4 py-2 text-slate-400 font-semibold hover:bg-slate-800/50 border border-[#1f293d] rounded-xl transition-colors text-sm">
                   Annuler
                 </button>
-                <button type="button" onClick={onDeleteProject} className="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 text-sm shadow-sm">
+                <button type="button" onClick={onDeleteProject} className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition-colors flex items-center gap-2 text-sm shadow-md">
                   <Trash2 className="w-4 h-4" />
                   Supprimer définitivement
                 </button>

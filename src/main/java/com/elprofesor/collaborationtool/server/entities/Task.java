@@ -66,5 +66,8 @@ public class Task {
     @OneToMany(mappedBy = "successor", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<TaskDependency> successorDependencies;
 
+    @Column(name = "submission_date")
+    private LocalDate submissionDate;
+
 
 }

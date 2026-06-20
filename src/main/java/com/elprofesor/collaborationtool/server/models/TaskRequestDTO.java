@@ -19,6 +19,8 @@ public class TaskRequestDTO {
     private LocalDate dateEcheance;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate dateDebut;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate submissionDate;
 
 
     public String getTitle() {
@@ -85,11 +87,19 @@ public class TaskRequestDTO {
         this.dateDebut = dateDebut;
     }
 
+    public LocalDate getSubmissionDate() {
+        return submissionDate;
+    }
+
+    public void setSubmissionDate(LocalDate submissionDate) {
+        this.submissionDate = submissionDate;
+    }
+
     @Override
     public final boolean equals(Object o) {
         if (!(o instanceof TaskRequestDTO that)) return false;
 
-        return Objects.equals(getProjectName(), that.getProjectName()) && Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && getStatus() == that.getStatus() && Objects.equals(getAssign_to(), that.getAssign_to()) && Objects.equals(getAttachmentUrl(), that.getAttachmentUrl()) && Objects.equals(getDateEcheance(), that.getDateEcheance()) && Objects.equals(getDateDebut(), that.getDateDebut());
+        return Objects.equals(getProjectName(), that.getProjectName()) && Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && getStatus() == that.getStatus() && Objects.equals(getAssign_to(), that.getAssign_to()) && Objects.equals(getAttachmentUrl(), that.getAttachmentUrl()) && Objects.equals(getDateEcheance(), that.getDateEcheance()) && Objects.equals(getDateDebut(), that.getDateDebut()) && Objects.equals(getSubmissionDate(), that.getSubmissionDate());
     }
 
     @Override
@@ -102,6 +112,7 @@ public class TaskRequestDTO {
         result = 31 * result + Objects.hashCode(getAttachmentUrl());
         result = 31 * result + Objects.hashCode(getDateEcheance());
         result = 31 * result + Objects.hashCode(getDateDebut());
+        result = 31 * result + Objects.hashCode(getSubmissionDate());
         return result;
     }
 
@@ -116,6 +127,7 @@ public class TaskRequestDTO {
                 ", attachmentUrl='" + attachmentUrl + '\'' +
                 ", dateEcheance=" + dateEcheance +
                 ", dateDebut=" + dateDebut +
+                ", dateSoumission = " + submissionDate +
                 '}';
     }
 }

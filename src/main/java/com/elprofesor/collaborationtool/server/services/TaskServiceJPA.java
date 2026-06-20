@@ -137,19 +137,23 @@ public class TaskServiceJPA implements TaskService {
                     throw new IllegalArgumentException("Impossible de marquer manuellement une tâche comme OVERDUE.");
                 }
                 if(tache.getStatus().equals(Status.END)){
-                    System.out.println("Impossible de modifier cette tâche");
                     throw new IllegalArgumentException("Cette tâche est déjà marquée comme terminé, vous ne pouvez pas modifier son statut");
 
                 }else if(tache.getStatus().equals(Status.TO_DO) && taskRequestDTO.getStatus().equals(Status.END)){
                     throw new IllegalArgumentException("Impossible de faire passer cette de \"A faire\" à \"Terminé\" sans passer par \"En cours\"");
-                }else if(tache.getStatus().equals(Status.OVERDUE)){//Une tâche rétardée dans sa livraison ne peut voir son statut être modifiée
-                    throw new IllegalArgumentException("Impossible de modifier le statut de cete tâche.");
-                } else{
+
+                }else if(tache.getStatus().equals(Status.NOT_FINISH) && taskRequestDTO.getStatus().equals(Status.END)){
+                    foundTask.setSubmissionDate(LocalDate.now());
+                    foundTask.setStatus(Status.END);
+                }else if(tache.getStatus().equals(Status.OVERDUE) && taskRequestDTO.getStatus().equals(Status.END)){
+                    foundTask.setSubmissionDate(LocalDate.now());
+                    foundTask.setStatus(Status.END);
+                }else{
                     foundTask.setStatus(taskRequestDTO.getStatus());
                 }
                 foundTask.setDescription(taskRequestDTO.getDescription());
                 if(taskRequestDTO.getDateEcheance() != null){
-                    if(taskRequestDTO.getDateEcheance().isBefore(LocalDate.now())){
+                    if(taskRequestDTO.getDateEcheance().isBefore(LocalDate.now()) && !taskRequestDTO.getDateEcheance().equals(tache.getDateEcheance())){
                         throw new IllegalArgumentException("Champ dateEcheance invalide : choisissez une date ultérieure à la date actuelle");
                     }else{
                         foundTask.setDateEcheance(taskRequestDTO.getDateEcheance());

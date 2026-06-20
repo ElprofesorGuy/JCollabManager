@@ -107,8 +107,6 @@ public class ProjectController {
     })
     public ResponseEntity deleteProjectById(@PathVariable("projectId") UUID projectId){
         projectService.deleteProject(projectId);
-        System.out.println("Id du projet à supprimer : " + projectId);
-        //System.out.println("Principal Name : " + authentication.name);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 
