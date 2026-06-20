@@ -62,104 +62,104 @@ const Profile = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto animate-fade-in">
+    <div className="max-w-2xl mx-auto animate-fade-in pb-12">
       <header className="mb-8 text-center">
-        <div className="inline-flex justify-center items-center w-20 h-20 bg-primary-100 text-primary-600 rounded-full mb-4">
+        <div className="inline-flex justify-center items-center w-20 h-20 bg-primary-500/10 text-primary-400 border border-primary-500/20 rounded-full mb-4">
           <User className="w-10 h-10" />
         </div>
-        <h1 className="text-3xl font-bold text-slate-800">Mon Profil</h1>
-        <p className="text-slate-500 mt-2">Gérez vos informations personnelles et paramètres de sécurité.</p>
+        <h1 className="text-3xl font-extrabold text-white tracking-wide">Mon Profil</h1>
+        <p className="text-slate-400 mt-1.5 text-sm">Gérez vos informations personnelles et paramètres de sécurité.</p>
       </header>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <form onSubmit={handleSubmit(onSubmit)} className="p-8">
+      <div className="glass-card overflow-hidden">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-6">
           
           {successMsg && (
-            <div className="mb-6 p-4 bg-green-50 text-green-700 border border-green-200 rounded-lg flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-green-500" />
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-emerald-400" />
               <p className="text-sm font-medium">{successMsg}</p>
             </div>
           )}
 
           {errorMsg && (
-            <div className="mb-6 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg">
+            <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl">
               <p className="text-sm font-medium">{errorMsg}</p>
             </div>
           )}
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nom d'utilisateur</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nom d'utilisateur</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <User className="h-5 w-5" />
                 </div>
                 <input
                   type="text"
                   {...register("username")}
-                  className={`pl-10 block w-full rounded-lg border ${errors.username ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-slate-300 focus:ring-primary-500 focus:border-primary-500'} sm:text-sm py-2.5`}
+                  className={`pl-10 block w-full rounded-xl bg-[#121824] border focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm ${errors.username ? 'border-rose-500' : 'border-[#1f293d]'}`}
                 />
               </div>
-              {errors.username && <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>}
+              {errors.username && <p className="mt-1 text-xs text-rose-400">{errors.username.message}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Adresse Email</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Adresse Email</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600">
+                  <Mail className="h-5 w-5" />
                 </div>
                 <input
                   type="email"
                   disabled
                   {...register("email")}
-                  className="pl-10 block w-full rounded-lg border border-slate-200 bg-slate-50 text-slate-500 sm:text-sm py-2.5 cursor-not-allowed"
+                  className="pl-10 block w-full rounded-xl border border-[#1f293d] bg-[#121824]/40 text-slate-500 text-sm cursor-not-allowed"
                 />
               </div>
-              <p className="mt-1 text-xs text-slate-500">L'adresse email ne peut pas être modifiée.</p>
+              <p className="mt-1.5 text-xs text-slate-500 italic">L'adresse email ne peut pas être modifiée.</p>
             </div>
 
-            <hr className="border-slate-100 my-6" />
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Changer le mot de passe</h3>
+            <hr className="border-[#1f293d]/60 my-8" />
+            <h3 className="text-lg font-bold text-white mb-4">Changer le mot de passe</h3>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Mot de passe actuel</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Mot de passe actuel</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <Lock className="h-5 w-5" />
                 </div>
                 <input
                   type="password"
                   {...register("currentPassword")}
                   placeholder="Laissez vide pour conserver"
-                  className={`pl-10 block w-full rounded-lg border ${errors.currentPassword ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-slate-300 focus:ring-primary-500 focus:border-primary-500'} sm:text-sm py-2.5`}
+                  className={`pl-10 block w-full rounded-xl bg-[#121824] border focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.currentPassword ? 'border-rose-500' : 'border-[#1f293d]'}`}
                 />
               </div>
-              {errors.currentPassword && <p className="mt-1 text-sm text-red-600">{errors.currentPassword.message}</p>}
+              {errors.currentPassword && <p className="mt-1 text-xs text-rose-400">{errors.currentPassword.message}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nouveau mot de passe</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nouveau mot de passe</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <Lock className="h-5 w-5" />
                 </div>
                 <input
                   type="password"
                   {...register("newPassword")}
                   placeholder="Nouveau mot de passe"
-                  className={`pl-10 block w-full rounded-lg border ${errors.newPassword ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-slate-300 focus:ring-primary-500 focus:border-primary-500'} sm:text-sm py-2.5`}
+                  className={`pl-10 block w-full rounded-xl bg-[#121824] border focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.newPassword ? 'border-rose-500' : 'border-[#1f293d]'}`}
                 />
               </div>
-              {errors.newPassword && <p className="mt-1 text-sm text-red-600">{errors.newPassword.message}</p>}
+              {errors.newPassword && <p className="mt-1 text-xs text-rose-400">{errors.newPassword.message}</p>}
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">
+          <div className="mt-8 pt-6 border-t border-[#1f293d]/50 flex justify-end">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center px-6 py-2.5 bg-primary-600 hover:bg-primary-500 border border-primary-500/40 text-sm font-semibold rounded-xl text-white shadow-[0_0_15px_rgba(139,92,246,0.2)] disabled:opacity-50 transition-colors"
             >
               {isSubmitting ? (
                 <>

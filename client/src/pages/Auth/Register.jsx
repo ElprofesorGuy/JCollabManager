@@ -36,85 +36,85 @@ const Register = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-16 bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="px-8 pt-8 pb-6 bg-primary-600 text-white text-center">
-        <h2 className="text-3xl font-bold mb-2">Créer un compte</h2>
-        <p className="text-primary-100">Rejoignez-nous aujourd'hui</p>
+    <div className="max-w-md mx-auto mt-16 glass-card overflow-hidden">
+      <div className="px-8 pt-8 pb-6 bg-[#121824]/40 border-b border-[#1f293d] text-center">
+        <h2 className="text-3xl font-extrabold text-white tracking-wide">Créer un compte</h2>
+        <p className="text-slate-400 mt-1.5 text-sm">Rejoignez-nous aujourd'hui</p>
       </div>
       
-      <form onSubmit={handleSubmit(onSubmit)} className="p-8">
+      <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-5">
         {serverError && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded flex items-start gap-2 text-sm">
-            <AlertCircle className="w-5 h-5 shrink-0" />
+          <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl flex items-start gap-2 text-xs">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
             <span>{serverError}</span>
           </div>
         )}
 
-        <div className="mb-4">
-          <label className="block text-slate-700 text-sm font-medium mb-1">Nom d'utilisateur</label>
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nom d'utilisateur</label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
               <User className="w-5 h-5" />
             </div>
             <input
               {...register('username')}
-              className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow ${errors.username ? 'border-red-500 focus:ring-red-500' : 'border-slate-300'}`}
+              className={`w-full pl-11 pr-3.5 py-2.5 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 transition-all ${errors.username ? 'border-rose-500' : 'border-[#1f293d]'}`}
               placeholder="votre_username"
             />
           </div>
-          {errors.username && <p className="mt-1 text-sm text-red-500">{errors.username.message}</p>}
+          {errors.username && <p className="mt-1 text-xs text-rose-400">{errors.username.message}</p>}
         </div>
 
-        <div className="mb-4">
-          <label className="block text-slate-700 text-sm font-medium mb-1">Email</label>
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Email</label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
               <Mail className="w-5 h-5" />
             </div>
             <input
               type="email"
               {...register('email')}
-              className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-slate-300'}`}
+              className={`w-full pl-11 pr-3.5 py-2.5 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 transition-all ${errors.email ? 'border-rose-500' : 'border-[#1f293d]'}`}
               placeholder="vous@exemple.com"
             />
           </div>
-          {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>}
+          {errors.email && <p className="mt-1 text-xs text-rose-400">{errors.email.message}</p>}
         </div>
 
-        <div className="mb-6">
-          <label className="block text-slate-700 text-sm font-medium mb-1">Mot de passe</label>
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Mot de passe</label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
               <Lock className="w-5 h-5" />
             </div>
             <input
               type={showPassword ? "text" : "password"}
               {...register('password')}
-              className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-slate-300'}`}
+              className={`w-full pl-11 pr-10 py-2.5 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 transition-all ${errors.password ? 'border-rose-500' : 'border-[#1f293d]'}`}
               placeholder="••••••••"
             />
             <button
               type="button"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+              className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
-          {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>}
+          {errors.password && <p className="mt-1 text-xs text-rose-400">{errors.password.message}</p>}
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-4 rounded-lg shadow transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+          className="w-full bg-primary-600 hover:bg-primary-500 text-white font-semibold py-2.5 px-4 rounded-xl border border-primary-500/40 shadow-[0_0_15px_rgba(139,92,246,0.3)] transition-all disabled:opacity-75 disabled:cursor-not-allowed text-sm mt-2"
         >
           {isSubmitting ? 'Inscription...' : 'S\'inscrire'}
         </button>
 
-        <p className="mt-6 text-center text-sm text-slate-600">
+        <p className="mt-6 text-center text-xs text-slate-400 font-medium">
           Déjà un compte ?{' '}
-          <Link to="/login" className="text-primary-600 font-medium hover:text-primary-800">
+          <Link to="/login" className="text-primary-400 font-semibold hover:text-primary-300 transition-colors">
             Se connecter
           </Link>
         </p>

@@ -69,88 +69,88 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-16 bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="px-8 pt-8 pb-6 bg-primary-600 text-white text-center">
-        <h2 className="text-2xl font-bold mb-2">Nouveau mot de passe</h2>
-        <p className="text-primary-100 text-sm">Veuillez choisir un nouveau mot de passe.</p>
+    <div className="max-w-md mx-auto mt-16 glass-card overflow-hidden">
+      <div className="px-8 pt-8 pb-6 bg-[#121824]/40 border-b border-[#1f293d] text-center">
+        <h2 className="text-2xl font-extrabold text-white tracking-wide">Nouveau mot de passe</h2>
+        <p className="text-slate-400 text-sm mt-1">Veuillez choisir un nouveau mot de passe.</p>
       </div>
       
       <div className="p-8">
         {serverError && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded flex items-start gap-2 text-sm">
-            <AlertCircle className="w-5 h-5 shrink-0" />
+          <div className="mb-4 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl flex items-start gap-2 text-xs">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
             <span>{serverError}</span>
           </div>
         )}
         
         {success ? (
-          <div className="text-center py-4">
-            <div className="mb-4 p-4 bg-green-50 text-green-700 rounded flex flex-col items-center gap-3">
-              <CheckCircle className="w-12 h-12 text-green-500" />
-              <p className="font-medium">Mot de passe modifié avec succès !</p>
-              <p className="text-sm">Vous allez être redirigé vers la page de connexion...</p>
+          <div className="text-center py-4 space-y-4">
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl flex flex-col items-center gap-3">
+              <CheckCircle className="w-12 h-12 text-emerald-400" />
+              <p className="font-semibold text-white">Mot de passe modifié avec succès !</p>
+              <p className="text-xs text-slate-400">Vous allez être redirigé vers la page de connexion...</p>
             </div>
             <button
               onClick={() => navigate('/login')}
-              className="mt-4 w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors"
+              className="w-full bg-primary-600 hover:bg-primary-500 text-white font-semibold py-2.5 px-4 rounded-xl border border-primary-500/40 shadow-[0_0_15px_rgba(139,92,246,0.3)] transition-all text-sm"
             >
               Aller à la connexion
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="mb-4">
-              <label className="block text-slate-700 text-sm font-medium mb-1">Nouveau mot de passe</label>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nouveau mot de passe</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                   <Lock className="w-5 h-5" />
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
                   {...register('newPassword')}
-                  className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow ${errors.newPassword ? 'border-red-500 focus:ring-red-500' : 'border-slate-300'}`}
+                  className={`w-full pl-11 pr-10 py-2.5 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 transition-all ${errors.newPassword ? 'border-rose-500' : 'border-[#1f293d]'}`}
                   placeholder="••••••••"
                   disabled={!token}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {errors.newPassword && <p className="mt-1 text-sm text-red-500">{errors.newPassword.message}</p>}
+              {errors.newPassword && <p className="mt-1 text-xs text-rose-400">{errors.newPassword.message}</p>}
             </div>
 
-            <div className="mb-6">
-              <label className="block text-slate-700 text-sm font-medium mb-1">Confirmer le mot de passe</label>
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Confirmer le mot de passe</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                   <Lock className="w-5 h-5" />
                 </div>
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   {...register('confirmPassword')}
-                  className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500' : 'border-slate-300'}`}
+                  className={`w-full pl-11 pr-10 py-2.5 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 transition-all ${errors.confirmPassword ? 'border-rose-500' : 'border-[#1f293d]'}`}
                   placeholder="••••••••"
                   disabled={!token}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {errors.confirmPassword && <p className="mt-1 text-sm text-red-500">{errors.confirmPassword.message}</p>}
+              {errors.confirmPassword && <p className="mt-1 text-xs text-rose-400">{errors.confirmPassword.message}</p>}
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting || !token}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-4 rounded-lg shadow transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full bg-primary-600 hover:bg-primary-500 text-white font-semibold py-2.5 px-4 rounded-xl border border-primary-500/40 shadow-[0_0_15px_rgba(139,92,246,0.3)] transition-all disabled:opacity-75 disabled:cursor-not-allowed text-sm mt-2"
             >
               {isSubmitting ? 'Modification...' : 'Réinitialiser le mot de passe'}
             </button>
