@@ -1,24 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    font-family: 'Outfit', sans-serif;
+    @apply bg-[#0a0e17] text-slate-100 antialiased;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-[#121824]/60 backdrop-blur-md border border-[#1f293d] rounded-2xl shadow-xl transition-all duration-300;
+  }
+  .glass-card-hover {
+    @apply hover:border-primary-500/40 hover:shadow-primary-500/5 hover:-translate-y-0.5;
   }
 }
 
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-slate-200 rounded-full;
+    @apply bg-slate-800 rounded-full;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-300;
+    @apply bg-slate-700;
   }
 }

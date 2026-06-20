@@ -19,6 +19,12 @@ export default {
           800: '#5b21b6',
           900: '#4c1d95',
           950: '#2e1065',
+        },
+        midnight: {
+          bg: '#0a0e17',
+          card: '#121824',
+          border: '#1f293d',
+          text: '#94a3b8'
         }
       }
     },

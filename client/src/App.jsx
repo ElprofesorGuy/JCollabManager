@@ -17,7 +17,7 @@ function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
-      <div className="min-h-screen flex flex-col bg-slate-50">
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a0e17] via-[#0f172a] to-[#020617] text-slate-100">
         <Navbar />
         <main className="flex-grow container mx-auto px-4 py-8">
           <Routes>
