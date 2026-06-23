@@ -1,5 +1,6 @@
 package com.elprofesor.collaborationtool.server.services;
 
+import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.models.Status;
 import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
@@ -21,4 +22,5 @@ public interface TaskService {
     Page<TaskResponseDTO> listOfTasks(String taskTitle, Status status, Integer pageNumber, Integer pageSize);
     TaskResponseDTO uploadAttachment(UUID taskId, MultipartFile file, Users currentUser);
     TaskResponseDTO removeAttachment(UUID taskId, Users currentUser);
+    boolean isPredecessorsAllCompleted(Task task);
 }

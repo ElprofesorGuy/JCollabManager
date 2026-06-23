@@ -3,6 +3,7 @@ package com.elprofesor.collaborationtool.server.services;
 import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
 import com.elprofesor.collaborationtool.server.entities.Project;
 import com.elprofesor.collaborationtool.server.entities.Task;
+import com.elprofesor.collaborationtool.server.entities.TaskDependency;
 import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.mapper.TaskDependencyMapper;
 import com.elprofesor.collaborationtool.server.mapper.TaskMapper;
@@ -12,6 +13,7 @@ import com.elprofesor.collaborationtool.server.repositories.ProjectRepository;
 import com.elprofesor.collaborationtool.server.repositories.TaskDependencyRepository;
 import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
+import jdk.jshell.Snippet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +25,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -87,6 +90,18 @@ public class TaskServiceJPA implements TaskService {
     }
 
     @Override
+    public boolean isPredecessorsAllCompleted(Task task) {
+        boolean isAllCompleted = true;
+        //Task task = taskRepository.findById(id).orElseThrow(() -> new NotFoundException("Tâche inexistante"));
+        Set<TaskDependency> dependencies = dependencyRepository.findBySuccessor(task);
+        for(TaskDependency item : dependencies){
+            if(!item.getPredecessor().getStatus().equals(Status.END))
+                isAllCompleted = false;
+        }
+        return isAllCompleted;
+    }
+
+    @Override
     public Optional<TaskResponseDTO> getTask(UUID id) {
         return Optional.ofNullable(taskMapper.taskToTaskResponseDto(taskRepository.findById(id).orElseThrow(NotFoundException::new)));
     }
@@ -128,6 +143,7 @@ public class TaskServiceJPA implements TaskService {
     @Override
     public Optional<TaskRequestDTO> updateTask(UUID id, TaskRequestDTO taskRequestDTO, Users currentUser) {
        Task tache = taskRepository.findById(id).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
+
         Project projet = tache.getProject();
         if(projet.getOwner().equals(currentUser)){
             AtomicReference<Optional<TaskRequestDTO>> atomicReference = new AtomicReference<>();
@@ -136,15 +152,21 @@ public class TaskServiceJPA implements TaskService {
                 if(taskRequestDTO.getStatus().equals(Status.OVERDUE)){//On ne peut marquer manuellement une tâche comme OVERDUE
                     throw new IllegalArgumentException("Impossible de marquer manuellement une tâche comme OVERDUE.");
                 }
-                if(tache.getStatus().equals(Status.END)){
+                if(tache.getStatus().equals(Status.END) && taskRequestDTO.getStatus()!= tache.getStatus()){
                     throw new IllegalArgumentException("Cette tâche est déjà marquée comme terminé, vous ne pouvez pas modifier son statut");
 
                 }else if(tache.getStatus().equals(Status.TO_DO) && taskRequestDTO.getStatus().equals(Status.END)){
                     throw new IllegalArgumentException("Impossible de faire passer cette de \"A faire\" à \"Terminé\" sans passer par \"En cours\"");
 
-                }else if(tache.getStatus().equals(Status.NOT_FINISH) && taskRequestDTO.getStatus().equals(Status.END)){
-                    foundTask.setSubmissionDate(LocalDate.now());
-                    foundTask.setStatus(Status.END);
+                }else if((tache.getStatus().equals(Status.NOT_FINISH) || tache.getStatus().equals(Status.OVERDUE))
+                        && taskRequestDTO.getStatus().equals(Status.END)){
+                    if(isPredecessorsAllCompleted(tache)){
+                        foundTask.setSubmissionDate(LocalDate.now());
+                        foundTask.setStatus(Status.END);
+                    }else{
+                        throw new IllegalArgumentException("Impossible de modifier la tâche : données incohérentes");
+                    }
+
                 }else if(tache.getStatus().equals(Status.OVERDUE) && taskRequestDTO.getStatus().equals(Status.END)){
                     foundTask.setSubmissionDate(LocalDate.now());
                     foundTask.setStatus(Status.END);
