@@ -101,7 +101,7 @@ const ProjectDetail = () => {
   const [isDeleteProjectModalOpen, setIsDeleteProjectModalOpen] = useState(false);
   const [projectError, setProjectError] = useState('');
 
-  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(taskSchema)
   });
 
@@ -207,6 +207,27 @@ const ProjectDetail = () => {
   const onTaskSubmit = async (data) => {
     try {
       setTaskError('');
+
+      const newStatus = data.status || 'TO_DO';
+      const oldStatus = selectedTask ? selectedTask.status : 'TO_DO';
+
+      if (newStatus === 'END' && oldStatus === 'TO_DO') {
+        setTaskError("Impossible de faire passer cette tâche de 'À faire' à 'Terminé' sans passer par 'En cours'.");
+        return;
+      }
+
+      if (newStatus === 'END' && selectedPredecessors.length > 0) {
+        const unfinishedPredecessors = selectedPredecessors
+          .map(pId => tasks.find(t => t.id === pId))
+          .filter(t => t && t.status !== 'END')
+          .map(t => t.title);
+          
+        if (unfinishedPredecessors.length > 0) {
+          setTaskError(`Impossible de marquer cette tâche comme terminée : les tâches préalables suivantes doivent d'abord être terminées : ${unfinishedPredecessors.join(', ')}`);
+          return;
+        }
+      }
+
       const payload = {
         projectName: project.title,
         title: data.title,
@@ -441,6 +462,23 @@ const ProjectDetail = () => {
   const tasksInProgress = tasks.filter(t => t.status === 'NOT_FINISH');
   const tasksDone = tasks.filter(t => t.status === 'END');
   const tasksOverdue = tasks.filter(t => t.status === 'OVERDUE');
+
+  const selectedStatus = watch('status');
+  let statusWarning = null;
+  if (selectedStatus === 'END') {
+    const oldStatus = selectedTask ? selectedTask.status : 'TO_DO';
+    if (oldStatus === 'TO_DO') {
+      statusWarning = "Attention : Impossible de passer de 'À faire' directement à 'Terminé'.";
+    } else if (selectedPredecessors.length > 0) {
+      const unfinishedPredecessors = selectedPredecessors
+        .map(pId => tasks.find(t => t.id === pId))
+        .filter(t => t && t.status !== 'END')
+        .map(t => t.title);
+      if (unfinishedPredecessors.length > 0) {
+        statusWarning = `Attention : Les tâches suivantes doivent être terminées : ${unfinishedPredecessors.join(', ')}`;
+      }
+    }
+  }
 
   return (
     <div className="animate-fade-in space-y-6 pb-12">
@@ -820,6 +858,12 @@ const ProjectDetail = () => {
                 <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{taskError}</span>
+                </div>
+              )}
+              {statusWarning && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-xs flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>{statusWarning}</span>
                 </div>
               )}
               <div>
