@@ -1,8 +1,10 @@
 package com.elprofesor.collaborationtool.server.models;
 
 public enum Role {
-    ADMIN ("ROLE_ADMIN"),
-    MEMBER ("ROLE_MEMBRE");
+    ADMIN ("Admin"),
+    CONTRIBUTOR ("Contributor"),
+    REVIEWER("Reviewer"),
+    VIEWER("Viewer");
 
     private final String role;
 
