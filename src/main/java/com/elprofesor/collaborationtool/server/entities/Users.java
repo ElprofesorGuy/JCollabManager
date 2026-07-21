@@ -1,6 +1,6 @@
 package com.elprofesor.collaborationtool.server.entities;
 
-import com.elprofesor.collaborationtool.server.models.Role;
+import com.elprofesor.collaborationtool.server.models.SystemRole;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -38,14 +38,11 @@ public class Users {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role;
+    private SystemRole role;
 
 
     @NotNull
     private LocalDate date_creation;
-
-    @OneToMany(mappedBy = "owner")
-    private Set<Project> projects;
 
     @OneToMany(mappedBy = "assign_to")
     private Set<Task> tasks;
@@ -53,4 +50,10 @@ public class Users {
     @NotNull
     @Column(name = "password_hash")
     private String password;
+
+    @OneToMany(mappedBy = "user")
+    private Set<ProjectMembership> memberships;
+
+    /*@OneToMany(mappedBy = "owner")
+    private Set<Project> projects;*/
 }

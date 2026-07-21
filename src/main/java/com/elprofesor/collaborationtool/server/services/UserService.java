@@ -12,7 +12,7 @@ import java.util.UUID;
 public interface UserService {
     Optional<UserResponseDTO> getUser(UUID id);
     Boolean deleteUser(UUID userId);
-    UserRequestDTO saveNewUser(UserRequestDTO newUser);
+    UserResponseDTO saveNewUser(UserRequestDTO newUser);
     Optional<UserResponseDTO> updateUser(UserRequestDTO existingUser, UUID userId);
     List<UserResponseDTO> getUsersList();
     Optional<UserResponseDTO> updateProfile(ProfileUpdateRequestDTO profileRequest, UUID userId, String currentUserEmail);

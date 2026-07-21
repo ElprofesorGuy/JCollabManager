@@ -13,7 +13,7 @@ public class UserResponseDTO {
     private UUID id;
     private String username;
     private String email;
-    private Role role;
+    private SystemRole role;
     private LocalDate date_creation;
 
     public UUID getId() {
@@ -40,11 +40,11 @@ public class UserResponseDTO {
         this.email = email;
     }
 
-    public Role getRole() {
+    public SystemRole getRole() {
         return role;
     }
 
-    public void setRole(Role role) {
+    public void setRole(SystemRole role) {
         this.role = role;
     }
 

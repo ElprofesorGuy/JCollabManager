@@ -4,24 +4,14 @@ import lombok.Builder;
 
 import java.time.LocalDate;
 import java.util.Objects;
-import java.util.UUID;
 
 @Builder
 public class UserRequestDTO {
-    private UUID id;
     private String username;
     private String email;
-    private Role role;
+    private SystemRole role;
     private LocalDate date_creation;
     private String password;
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
 
     public String getUsername() {
         return username;
@@ -39,11 +29,11 @@ public class UserRequestDTO {
         this.email = email;
     }
 
-    public Role getRole() {
+    public SystemRole getRole() {
         return role;
     }
 
-    public void setRole(Role role) {
+    public void setRole(SystemRole role) {
         this.role = role;
     }
 
@@ -67,13 +57,12 @@ public class UserRequestDTO {
     public final boolean equals(Object o) {
         if (!(o instanceof UserRequestDTO that)) return false;
 
-        return Objects.equals(getId(), that.getId()) && Objects.equals(getUsername(), that.getUsername()) && Objects.equals(getEmail(), that.getEmail()) && getRole() == that.getRole() && Objects.equals(getDate_creation(), that.getDate_creation()) && Objects.equals(getPassword(), that.getPassword());
+        return  Objects.equals(getUsername(), that.getUsername()) && Objects.equals(getEmail(), that.getEmail()) && getRole() == that.getRole() && Objects.equals(getDate_creation(), that.getDate_creation()) && Objects.equals(getPassword(), that.getPassword());
     }
 
     @Override
     public int hashCode() {
-        int result = Objects.hashCode(getId());
-        result = 31 * result + Objects.hashCode(getUsername());
+        int result = Objects.hashCode(getUsername());
         result = 31 * result + Objects.hashCode(getEmail());
         result = 31 * result + Objects.hashCode(getRole());
         result = 31 * result + Objects.hashCode(getDate_creation());
@@ -84,7 +73,6 @@ public class UserRequestDTO {
     @Override
     public String toString() {
         return "UserRequestDTO{" +
-                "id=" + id +
                 ", username='" + username + '\'' +
                 ", email='" + email + '\'' +
                 ", role=" + role +
