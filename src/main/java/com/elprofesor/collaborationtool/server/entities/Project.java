@@ -1,8 +1,8 @@
 package com.elprofesor.collaborationtool.server.entities;
 
+import com.elprofesor.collaborationtool.server.models.ProjectRole;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Builder
+//@Builder
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,7 +23,7 @@ public class Project {
     @Id
     @GeneratedValue(generator = "UUID")
     @UuidGenerator
-    @Column(length = 36, columnDefinition = "varchar", updatable = false, nullable = false)
+    @Column(updatable = false, nullable = false)
     @EqualsAndHashCode.Include
     private UUID id;
 
@@ -41,31 +41,12 @@ public class Project {
     @CreationTimestamp
     private LocalDate update_date;
 
-    @ManyToOne
-    @JoinColumn(name = "owner_id", columnDefinition = "uuid")
-    @NotNull
-    private Users owner;
-
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Task> tasks = new HashSet<>();
 
-    @ManyToMany
-    @JoinTable(name = "project_members",
-    joinColumns = @JoinColumn(name = "project_id", columnDefinition = "uuid"),
-    inverseJoinColumns = @JoinColumn(name = "user_id", columnDefinition = "uuid"))
-    private Set<Users> members = new HashSet<>();
-
-    public void addMember(Users user) {
-        if (this.members == null) {
-            this.members = new HashSet<>();
-        }
-        this.members.add(user);
-    }
-
-    public void removeMember(Users member){
-        this.members.remove(member);
-        member.getProjects().remove(this);
-    }
+    //new
+    @OneToMany(mappedBy="project", cascade=CascadeType.ALL)
+    private Set<ProjectMembership> memberships = new HashSet<>();
 
     public void addTask(Task task){
         if(this.tasks == null){
@@ -73,4 +54,18 @@ public class Project {
         }
         this.tasks.add(task);
     }
+
+    public Users getUser(){
+        if(this.memberships == null) return null;
+        return this.memberships.stream()
+                .filter(managerUser -> managerUser.getRole() == ProjectRole.MANAGER)
+                .map(ProjectMembership::getUser)
+                .findFirst().orElse(null);
+    }
+
+    /*public void setUser(String email){
+        Users manager = getUser();
+        manager.setEmail(email);
+    }*/
+
 }

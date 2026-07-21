@@ -1,33 +1,25 @@
 package com.elprofesor.collaborationtool.server.services;
 
 import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
-import com.elprofesor.collaborationtool.server.entities.Project;
-import com.elprofesor.collaborationtool.server.entities.Task;
-import com.elprofesor.collaborationtool.server.entities.Users;
-import com.elprofesor.collaborationtool.server.mapper.ProjectMapper;
-import com.elprofesor.collaborationtool.server.mapper.TaskMapper;
-import com.elprofesor.collaborationtool.server.mapper.UserMapper;
+import com.elprofesor.collaborationtool.server.entities.*;
+import com.elprofesor.collaborationtool.server.mapper.*;
 import com.elprofesor.collaborationtool.server.models.*;
-import com.elprofesor.collaborationtool.server.repositories.ProjectRepository;
-import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
-import com.elprofesor.collaborationtool.server.repositories.UserRepository;
+import com.elprofesor.collaborationtool.server.repositories.*;
 import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-@Service("projectService")
+@Service
 @RequiredArgsConstructor
 @Validated
+@Transactional
 public class ProjectServiceJPA implements ProjectService {
 
     private final ProjectMapper projectMapper;
@@ -35,8 +27,10 @@ public class ProjectServiceJPA implements ProjectService {
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
-    private final UserMapper userMapper;
-    private final NotificationService notificationService;
+    private final WorkflowStatusRepository workflowStatusRepository;
+    private final WorkflowStatusMapper mapper;
+    private final ProjectMembershipRepository projectMembershipRepository;
+    private final ProjectMemberMapper projectMemberMapper;
 
     @Override
     public List<ProjectResponseDTO> listProjects() {
@@ -48,15 +42,12 @@ public class ProjectServiceJPA implements ProjectService {
 
     @Override
     public List<ProjectResponseDTO> listMyProjects(Users currentUser) {
-        List<ProjectResponseDTO> myProjects =  projectRepository.findAll()
+        List<ProjectMembership> projectMemberships = projectMembershipRepository.findByUser(currentUser);
+        return projectMemberships
                 .stream()
-                .filter(p -> p.getOwner().equals(currentUser) || p.getMembers().contains(currentUser))
+                .map(ProjectMembership::getProject)
                 .map(projectMapper::projectToProjectResponseDto)
-                .collect(Collectors.toList());
-        for(ProjectResponseDTO projet : myProjects){
-            System.out.println("Titre du projet : " + projet.getTitle());
-        }
-        return myProjects;
+                .toList();
     }
 
 
@@ -66,38 +57,70 @@ public class ProjectServiceJPA implements ProjectService {
     }
 
     @Override
-    public ProjectResponseDTO saveNewProject(ProjectRequestDTO projectRequestDTO) {
-        Optional<Users> user= userRepository.findByEmail(projectRequestDTO.getOwnerEmail());
+    public ProjectResponseDTO saveNewProject(ProjectRequestDTO projectRequestDTO, Users currentUser) {
         Project projectToSave = projectMapper.projectRequestDtoToProject(projectRequestDTO);
-        projectToSave.setOwner(user.get());
-        projectToSave.addMember(user.get());
-        return projectMapper.projectToProjectResponseDto(projectRepository.save(projectToSave));
+        WorkflowStatus defaultWorkflowStauts1 = mapper.workflowStatusRequestDtoToWorkflowStatus(
+                        WorkflowStatusRequestDTO.builder()
+                                .completed(false)
+                                .name("A Faire")
+                                .orderIndex(0)
+                                .build()
+                );
+        defaultWorkflowStauts1.setProject(projectToSave);
+        WorkflowStatus defaultWorfflowStatus2 = mapper.workflowStatusRequestDtoToWorkflowStatus(
+                WorkflowStatusRequestDTO.builder()
+                .completed(false)
+                .name("En cours")
+                .orderIndex(1)
+                .build());
+        defaultWorfflowStatus2.setProject(projectToSave);
+        WorkflowStatus defaultWorfflowStatus3 = mapper.workflowStatusRequestDtoToWorkflowStatus(
+                WorkflowStatusRequestDTO.builder()
+                .completed(true)
+                .name("Terminé")
+                .orderIndex(2)
+                .build());
+        defaultWorfflowStatus3.setProject(projectToSave);
+        ProjectResponseDTO responseDTO = projectMapper.projectToProjectResponseDto(projectRepository.save(projectToSave));
+        if(responseDTO.equals(null)){
+            System.out.println("System error");
+        }else{
+            System.out.println("Elément enregistré avec succès");
+        }
+        Optional<Users> manager = userRepository.findByEmail(projectRequestDTO.getManagerEmail());
+        //System.out.println("Nom de l'utilisateur trouvé : " + manager.getUsername());
+        if(manager.isEmpty()){
+            System.out.println("Retour sur la recherche de l'utilisateur : " + "utilisateur inexistant");
+        }else{
+            System.out.println("Manager retrouvé");
+            System.out.println("Email du manager : " + manager.get().getEmail());
+        }
+        ProjectMembership newMembership = ProjectMembership.builder()
+                .user(manager.get())
+                .project(projectToSave)
+                .role(ProjectRole.MANAGER)
+                .joined_at(LocalDate.now())
+                .build();
+        projectMembershipRepository.save(newMembership);
+        workflowStatusRepository.saveAll(List.of(defaultWorkflowStauts1, defaultWorfflowStatus2,defaultWorfflowStatus3));
+        responseDTO.setManagerEmail(manager.get().getEmail());
+        return responseDTO;
     }
 
     @Override
     public Optional<ProjectRequestDTO> updateProjectById(UUID id, ProjectRequestDTO projectRequestDTO, Users currentUser) {
         AtomicReference<Optional<ProjectRequestDTO>> atomicReference = new AtomicReference<>();
         projectRepository.findById(id).ifPresentOrElse(foundProject -> {
-            if (currentUser.getRole() == Role.ADMIN && !foundProject.getOwner().equals(currentUser)) {
-                foundProject.setOwner(userRepository.findByEmail(projectRequestDTO.getOwnerEmail()).orElse(foundProject.getOwner()));
-            }else if(currentUser.getRole() == Role.ADMIN && foundProject.getOwner().equals(currentUser)){
-                foundProject.setOwner(userRepository.findByEmail(projectRequestDTO.getOwnerEmail()).orElse(foundProject.getOwner()));
-                foundProject.setTitle(projectRequestDTO.getTitle());
-                foundProject.setDescription(projectRequestDTO.getDescription());
-            }else if (foundProject.getOwner().equals(currentUser)) {
-                foundProject.setTitle(projectRequestDTO.getTitle());
-                foundProject.setDescription(projectRequestDTO.getDescription());
-            } else {
-                throw new AccessDeniedException("Vous n'êtes ni l'ADMIN ni le owner de ce projet");
-            }
+            foundProject.setTitle(projectRequestDTO.getTitle());
+            foundProject.setDescription(projectRequestDTO.getDescription());
             foundProject.setUpdate_date(LocalDate.now());
-            NotificationRequestDTO dto = NotificationRequestDTO.builder()
+            /*NotificationRequestDTO dto = NotificationRequestDTO.builder()
                     .type(NotificationType.PROJET_MODIFIE)
                     .message("Les informations sur un projet ont été mises à jour")
-                    .recipientUsername(foundProject.getOwner().getUsername())
+                    //.recipientUsername(foundProject.getOwner().getUsername())
                     .targetUrl("/projects/" + foundProject.getId())
                     .build();
-            notificationService.saveNewNotification(dto);
+            notificationService.saveNewNotification(dto);*/
             Project savedProject = projectRepository.save(foundProject);
             atomicReference.set(Optional.of(projectMapper.projectToProjectRequestDto(savedProject)));
         }, () -> {
@@ -108,7 +131,12 @@ public class ProjectServiceJPA implements ProjectService {
 
     @Override
     public Boolean deleteProject(UUID id) {
+
         if(projectRepository.existsById(id)){
+            Project deletedProject = projectRepository.findById(id).orElseThrow(()-> new NotFoundException("Project not found"));
+            List<WorkflowStatus> workflowStatuses = workflowStatusRepository.findByProject_Id(id);
+            projectMembershipRepository.deleteAll(deletedProject.getMemberships());
+            workflowStatusRepository.deleteAll(workflowStatuses);
             projectRepository.deleteById(id);
             return true;
         }
@@ -121,94 +149,65 @@ public class ProjectServiceJPA implements ProjectService {
     }
 
     @Override
-    public boolean isProjectOwner(UUID projectId, String name) {
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new  NotFoundException("Projet non trouvé"));
-        System.out.println("Owner du projet trouvé : " + project.getOwner().getUsername());
-        System.out.println("Owner du projet attendu : " + name);
-        return project.getOwner().getUsername().equals(name);
-    }
-
-    @Override
-    public ProjectResponseDTO addMembers(UUID projectId, Set<@Email String> memberEmails, Users currentUser) {
-        Project project = projectRepository.findById(projectId)
+    public ProjectResponseDTO addMembers(UUID projectId, @Email String memberEmail, Users currentUser, ProjectRole projectRole) {
+         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException(
                         "Projet introuvable : " + projectId
                 ));
-        if (!project.getOwner().equals(currentUser)) {
-            throw new AccessDeniedException(
-                    "Seul le owner peut ajouter des membres"
-            );
-        }
-
-        // 2. Résoudre les emails en entités User
-        Set<Users> newMembers = memberEmails.stream()
-                .map(email -> userRepository.findByEmail(email)
-                        .orElseThrow(() -> new NotFoundException(
-                                "Utilisateur introuvable : " + email
-                        )))
-                .collect(Collectors.toSet());
-        // 3. Ajouter les nouveaux membres au Set existant
-        project.getMembers().addAll(newMembers);
-        
-        // Auto-assign tasks that have no assignee to the new member (first one in the set)
-        Users firstNewMember = newMembers.stream().findFirst().orElse(null);
-        if (firstNewMember != null && project.getTasks() != null) {
-            project.getTasks().stream()
-                .filter(t -> t.getAssign_to() == null)
-                .forEach(t -> t.setAssign_to(firstNewMember));
-        }
-        // 4. Sauvegarder et retourner
+         System.out.println("========== NOM DU PROJET ==========" + project.getTitle());
+        Users newMember = userRepository.findByEmail(memberEmail).orElseThrow(()-> new NotFoundException("Not Found this user"));
+        System.out.println("========== NOM DU NOUVEL ADHERENT : " + newMember.getUsername());
+        ProjectMembership newMembership = ProjectMembership.builder()
+                .project(project)
+                .user(newMember)
+                .invitedBy(currentUser)
+                .joined_at(LocalDate.now())
+                .role(projectRole)
+                .build();
+        projectMembershipRepository.save(newMembership);
+        project.getMemberships().add(newMembership);
         return projectMapper.projectToProjectResponseDto(projectRepository.save(project));
     }
 
     @Override
-    public ProjectResponseDTO removeMembers(UUID projectId, Set<@Email String> memberEmails, Users currentUser) {
+    public ProjectResponseDTO removeMembers(UUID projectId, @Email String memberEmail) {
         Project project = projectRepository.findById(projectId).orElseThrow(() -> new NotFoundException(
                         "Projet introuvable : " + projectId));
-        if (!project.getOwner().equals(currentUser)) {
-            throw new AccessDeniedException("Seul le owner peut supprimer des membres");
+        Users deletedUser = userRepository.findByEmail(memberEmail)
+                .orElseThrow(()-> new NotFoundException("Utilisateur inexistant"));
+        if(deletedUser.equals(null)) {
+            System.out.println("Value not found");
+        }else {
+            System.out.println("Utilisateur membre à supprimer");
         }
-        // 2. Résoudre les emails en entités User
-        Set<Users> membersToRemove = memberEmails.stream()
-                .map(email -> userRepository.findByEmail(email)
-                        .orElseThrow(() -> new NotFoundException("Utilisateur introuvable : " + email)))
-                .collect(Collectors.toSet());
-        // 3. Empêcher la suppression du owner
-        if (membersToRemove.contains(project.getOwner())) {
-            throw new IllegalArgumentException("Impossible de retirer le owner du projet");
+        if(project.equals(null)){
+            System.out.println("Value of project not found");
+        } else{
+            System.out.println("Project trouvé");
         }
-        // 4. Retirer les membres du Set existant et désassigner leurs tâches
-        project.getMembers().removeAll(membersToRemove);
-        
-        if (project.getTasks() != null) {
-            project.getTasks().forEach(task -> {
-                if (membersToRemove.contains(task.getAssign_to())) {
-                    task.setAssign_to(null);
-                }
-            });
+
+        ProjectMembership projectMembership = projectMembershipRepository.findByProjectAndUser(project, deletedUser);
+        if(!projectMembership.equals(null)){
+            project.getMemberships().remove(projectMembership);
+            projectMembershipRepository.delete(projectMembership);
         }
 
         return projectMapper.projectToProjectResponseDto(projectRepository.save(project));
     }
 
     @Override
-    public Set<UserResponseDTO> displayMembersOfaProject(UUID projectId) {
-        Optional <Project> project = projectRepository.findById(projectId);
-        return project.get().getMembers()
-                .stream()
-                .map(userMapper::userToUserResponseDto)
+    public Set<ProjectMemberResponseDTO> displayMembersOfaProject(UUID projectId) {
+        List<ProjectMembership> memberships = projectMembershipRepository.findByProjectId(projectId);
+        return memberships.stream()
+                .map(projectMemberMapper::toProjectMemberResponseDto)
                 .collect(Collectors.toSet());
+
     }
 
     @Override
     public ProjectResponseDTO removeTask(UUID projectId, String taskTitle, Users currentUser) {
         Task taskToDelete = taskRepository.findByTitleContainingIgnoreCase(taskTitle).orElseThrow( () -> new NotFoundException("Tâche inexistante"));
         Project project = projectRepository.findById(projectId).orElseThrow(() -> new NotFoundException("Projet inexistant"));
-
-        if(!project.getOwner().equals(currentUser)){
-            throw new AccessDeniedException("Seul le owner peut supprimer une tâche");
-        }
 
        project.getTasks().remove(taskToDelete);
         return projectMapper.projectToProjectResponseDto(project);
@@ -223,16 +222,5 @@ public class ProjectServiceJPA implements ProjectService {
                 .collect(Collectors.toSet());
     }
 
-     /*@Override
-    public TaskResponseDTO addTaskToProject(UUID projectId, TaskRequestDTO taskRequestDTO) {
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new NotFoundException("Projet non trouvé"));
-        //Optional<Task> task = taskRepository.findByTitleContainingIgnoreCase(taskTitle);
-        //project.addTask(task.get());
-        taskRequestDTO.setProjectName(project.getTitle());
-        projectRepository.save(project);
-
-        //return taskMapper.taskToTaskResponseDto(task.get());
-    }*/
 
 }
