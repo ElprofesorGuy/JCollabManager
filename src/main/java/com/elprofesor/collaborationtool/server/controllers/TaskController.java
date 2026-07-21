@@ -1,7 +1,7 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
 import com.elprofesor.collaborationtool.server.entities.Users;
-import com.elprofesor.collaborationtool.server.models.Status;
+//import com.elprofesor.collaborationtool.server.models.Status;
 import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
 import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
@@ -18,13 +18,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class TaskController {
     private final TaskService taskService;
     private final UserRepository userRepository;
@@ -32,7 +30,7 @@ public class TaskController {
     private final String TASK_PATH_ID = TASK_PATH + "/{taskId}";
 
     @GetMapping(TASK_PATH)
-    @PreAuthorize("isAuthenticated()")
+    //@PreAuthorize("@projectSecurityServiceJPA.isProjectMember(taskRepository.findById(#taskId).get().getProject().getId())")
     @Operation(summary = "Liste des tâches", description = "Lister l'ensemble des tâches, indépendamment des projets")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter"),
@@ -41,12 +39,11 @@ public class TaskController {
     public Page<TaskResponseDTO> displayListOfTasks(@RequestParam(required = false) Integer pageNumber,
                                                     @RequestParam(required = false) Integer pageSize,
                                                     @RequestParam(required = false) String taskTitle,
-                                                    @RequestParam(required = false) Status taskStatus){
+                                                    @RequestParam(required = false) String taskStatus){
         return taskService.listOfTasks(taskTitle, taskStatus, pageNumber, pageSize);
     }
 
     /*@GetMapping(TASK_PATH)
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Liste des tâches triées par Status")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter"),
@@ -57,7 +54,7 @@ public class TaskController {
     }*/
 
     @GetMapping(TASK_PATH_ID)
-    @PreAuthorize("isAuthenticated()")
+    //@PreAuthorize("@projectSecurityServiceJPA.isProjectMember(@taskRepository.findById(#taskId).get().getProject().getId())")
     @Operation(summary = "Recherche une tâche spécifique", description = "Rechercher dans la BD une tâche particulière en fournissant sont ID.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "404", description = "Cette tâche n'existe pas."),
@@ -69,7 +66,7 @@ public class TaskController {
     }
 
     @DeleteMapping(TASK_PATH_ID)
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@projectSecurityServiceJPA.canDeleteTask(#taskId)")
     @Operation(summary = "Suppression d'une tâche", description = "Supprimer une tâche spécifique d'un projet")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentigié, veuillez d'abord vous connecter"),
@@ -86,6 +83,7 @@ public class TaskController {
     }
 
     @PostMapping(TASK_PATH + "/{projectId}")
+    @PreAuthorize("@projectSecurityServiceJPA.canCreateTask(#projectId)")
     @Operation (summary = "Création d'une nouvelle tâche", description = "Créer une nouvelle tâche")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Seul le owner du projet peut ajouter une tâche une tâche."),
@@ -102,7 +100,8 @@ public class TaskController {
         return new ResponseEntity(HttpStatus.CREATED);
     }
 
-    @PutMapping(TASK_PATH_ID)
+    @PutMapping(TASK_PATH_ID + "/{projectId}")
+    @PreAuthorize("@projectSecurityServiceJPA.canUpdateTask(#projectId)")
     @Operation(summary = "Modification des informations d'une tâche ", description = "Modifier les informations d'une tâche")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié"),
@@ -119,7 +118,7 @@ public class TaskController {
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 
-    @GetMapping(TASK_PATH + "/overdue")
+    /*@GetMapping(TASK_PATH + "/overdue")
     @Operation(summary = "Liste des tâches marquées en retard", description = "Afficher la liste des tâches qui sont marquées comme étant des tâches en retard")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Liste affichée avec succès"),
@@ -127,8 +126,8 @@ public class TaskController {
     })
     public List<TaskResponseDTO> displayOverdueTasks(){
         return taskService.listOverdueTask();
-    }
-    @PostMapping(TASK_PATH_ID + "/upload")
+    }*/
+    /*@PostMapping(TASK_PATH_ID + "/upload")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Uploader une pièce jointe", description = "Permet de joindre un fichier (document, image) à une tâche.")
     public ResponseEntity<TaskResponseDTO> uploadAttachment(
@@ -141,9 +140,9 @@ public class TaskController {
         
         TaskResponseDTO updatedTask = taskService.uploadAttachment(taskId, file, currentUser);
         return ResponseEntity.ok(updatedTask);
-    }
+    }*/
 
-    @DeleteMapping(TASK_PATH_ID + "/attachment")
+    /*@DeleteMapping(TASK_PATH_ID + "/attachment")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Supprimer une pièce jointe", description = "Permet de supprimer le fichier attaché à une tâche.")
     public ResponseEntity<TaskResponseDTO> removeAttachment(
@@ -155,5 +154,5 @@ public class TaskController {
         
         TaskResponseDTO updatedTask = taskService.removeAttachment(taskId, currentUser);
         return ResponseEntity.ok(updatedTask);
-    }
+    }*/
 }

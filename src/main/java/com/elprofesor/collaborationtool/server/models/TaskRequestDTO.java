@@ -9,10 +9,9 @@ import java.util.Objects;
 
 @Builder
 public class TaskRequestDTO {
-    private String projectName;
+    //private String projectName;
     private String title;
     private String description;
-    private Status status;
     private String assign_to;
     private String attachmentUrl;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
@@ -20,7 +19,10 @@ public class TaskRequestDTO {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate dateDebut;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
-    private LocalDate submissionDate;
+    //private LocalDate submissionDate;
+    private String workflowStatus;
+    private String taskType;
+    private String parentTaskName;
 
 
     public String getTitle() {
@@ -39,25 +41,17 @@ public class TaskRequestDTO {
         this.description = description;
     }
 
-    public Status getStatus() {
-        return status;
-    }
-
-    public void setStatus(Status status) {
-        this.status = status;
-    }
-
     public String getAssign_to() {
         return assign_to;
     }
 
-    public String getProjectName() {
+    /*public String getProjectName() {
         return projectName;
     }
 
     public void setProjectName(String projectName) {
         this.projectName = projectName;
-    }
+    }*/
 
     public void setAssign_to(String assign_to) {
         this.assign_to = assign_to;
@@ -87,47 +81,74 @@ public class TaskRequestDTO {
         this.dateDebut = dateDebut;
     }
 
-    public LocalDate getSubmissionDate() {
+    /*public LocalDate getSubmissionDate() {
         return submissionDate;
     }
 
     public void setSubmissionDate(LocalDate submissionDate) {
         this.submissionDate = submissionDate;
+    }*/
+
+    public String getWorkflowStatus() {
+        return workflowStatus;
+    }
+
+    public void setWorkflowStatus(String workflowStatus) {
+        this.workflowStatus = workflowStatus;
+    }
+
+    public String getTaskType() {
+        return taskType;
+    }
+
+    public void setTaskType(String taskType) {
+        this.taskType = taskType;
+    }
+
+    public String getParentTaskName() {
+        return parentTaskName;
+    }
+
+    public void setParentTaskName(String parentTaskName) {
+        this.parentTaskName = parentTaskName;
     }
 
     @Override
     public final boolean equals(Object o) {
         if (!(o instanceof TaskRequestDTO that)) return false;
 
-        return Objects.equals(getProjectName(), that.getProjectName()) && Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && getStatus() == that.getStatus() && Objects.equals(getAssign_to(), that.getAssign_to()) && Objects.equals(getAttachmentUrl(), that.getAttachmentUrl()) && Objects.equals(getDateEcheance(), that.getDateEcheance()) && Objects.equals(getDateDebut(), that.getDateDebut()) && Objects.equals(getSubmissionDate(), that.getSubmissionDate());
+        return Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && Objects.equals(getAssign_to(), that.getAssign_to()) && Objects.equals(getAttachmentUrl(), that.getAttachmentUrl()) && Objects.equals(getDateEcheance(), that.getDateEcheance()) && Objects.equals(getDateDebut(), that.getDateDebut()) && Objects.equals(getWorkflowStatus(), that.getWorkflowStatus()) && Objects.equals(getTaskType(), that.getTaskType()) && Objects.equals(getParentTaskName(), that.getParentTaskName());
     }
 
     @Override
     public int hashCode() {
-        int result = Objects.hashCode(getProjectName());
-        result = 31 * result + Objects.hashCode(getTitle());
+        //int result = Objects.hashCode(getProjectName());
+        int result = Objects.hashCode(getTitle());
         result = 31 * result + Objects.hashCode(getDescription());
-        result = 31 * result + Objects.hashCode(getStatus());
         result = 31 * result + Objects.hashCode(getAssign_to());
         result = 31 * result + Objects.hashCode(getAttachmentUrl());
         result = 31 * result + Objects.hashCode(getDateEcheance());
         result = 31 * result + Objects.hashCode(getDateDebut());
-        result = 31 * result + Objects.hashCode(getSubmissionDate());
+       // result = 31 * result + Objects.hashCode(getSubmissionDate());
+        result = 31 * result + Objects.hashCode(getWorkflowStatus());
+        result = 31 * result + Objects.hashCode(getTaskType());
+        result = 31 * result + Objects.hashCode(getParentTaskName());
         return result;
     }
 
     @Override
     public String toString() {
         return "TaskRequestDTO{" +
-                "projectName='" + projectName + '\'' +
                 ", title='" + title + '\'' +
                 ", description='" + description + '\'' +
-                ", status=" + status +
                 ", assign_to='" + assign_to + '\'' +
                 ", attachmentUrl='" + attachmentUrl + '\'' +
                 ", dateEcheance=" + dateEcheance +
                 ", dateDebut=" + dateDebut +
-                ", dateSoumission = " + submissionDate +
+                //", submissionDate=" + submissionDate +
+                ", workflowStatus='" + workflowStatus + '\'' +
+                ", taskType='" + taskType + '\'' +
+                ", parentTaskName='" + parentTaskName + '\'' +
                 '}';
     }
 }

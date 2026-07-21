@@ -14,7 +14,6 @@ public class TaskResponseDTO {
     private String projectName;
     private String title;
     private String description;
-    private Status status;
     private String assign_to;
     private String attachmentUrl;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
@@ -23,4 +22,7 @@ public class TaskResponseDTO {
     private LocalDate dateDebut;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate submissionDate;
+    private String taskType;
+    private String parentTaskName;
+    private String workflowStatus;
 }

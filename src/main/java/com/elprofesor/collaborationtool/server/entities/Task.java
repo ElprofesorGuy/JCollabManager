@@ -1,7 +1,8 @@
 package com.elprofesor.collaborationtool.server.entities;
 
 
-import com.elprofesor.collaborationtool.server.models.Status;
+
+import com.elprofesor.collaborationtool.server.models.TaskType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -10,7 +11,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDate;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -34,10 +34,6 @@ public class Task {
 
     @NotNull
     private String description;
-
-    @Enumerated (EnumType.STRING)
-    @Column(nullable = false)
-    private Status status;
     
     @Column(name = "attachment_url")
     private String attachmentUrl;
@@ -68,6 +64,20 @@ public class Task {
 
     @Column(name = "submission_date")
     private LocalDate submissionDate;
+
+    @ManyToOne
+    @JoinColumn(name = "parent_task_id", columnDefinition = "uuid")
+    private Task parentTask;
+
+    @OneToMany(mappedBy = "parentTask")
+    private Set<Task> subtasks;
+
+    @ManyToOne
+    @JoinColumn(name = "status_id")
+    private WorkflowStatus status;
+
+    @Enumerated(EnumType.STRING)
+    private TaskType taskType;
 
 
 }
