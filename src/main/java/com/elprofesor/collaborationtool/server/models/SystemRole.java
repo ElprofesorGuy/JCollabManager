@@ -1,14 +1,12 @@
 package com.elprofesor.collaborationtool.server.models;
 
-public enum Role {
+public enum SystemRole {
     ADMIN ("Admin"),
-    CONTRIBUTOR ("Contributor"),
-    REVIEWER("Reviewer"),
-    VIEWER("Viewer");
+    MEMBER("User");
 
     private final String role;
 
-    Role(String role){
+    SystemRole(String role){
         this.role = role;
     }
     public String getRole() {
