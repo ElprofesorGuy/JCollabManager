@@ -302,6 +302,11 @@ const GanttView = ({ tasks, dependencies, projectId, onTaskClick, refreshData })
               
               // Détecter si la tâche a des dates invalides (missing debut or echeance)
               const isMissingDates = !task.dateDebut || !task.dateEcheance;
+              
+              const isEpic = task.taskType === 'EPIC';
+              const isSubtask = task.taskType === 'SUBTASK';
+              const typeHeight = isEpic ? 'h-10' : 'h-8';
+              const typeBorder = isEpic ? 'border-2' : 'border';
 
               return (
                 <div 
@@ -313,7 +318,10 @@ const GanttView = ({ tasks, dependencies, projectId, onTaskClick, refreshData })
                   {/* Label gauche flottant (collant) */}
                   <div className="sticky left-6 z-20 max-w-[200px] w-[200px] bg-white/90 backdrop-blur-sm px-2 py-1 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)] rounded-r-md truncate text-sm font-semibold text-slate-700 mr-4 flex items-center gap-2">
                     {isMissingDates && <AlertCircle className="w-3.5 h-3.5 text-orange-400" title="Dates manquantes, affichage par défaut" />}
-                    {task.title}
+                    {task.taskType === 'EPIC' && <span title="Epic">💎</span>}
+                    {task.taskType === 'STORY' && <span title="Story">📘</span>}
+                    {isSubtask && <span className="ml-2 text-slate-400" title="Sous-tâche">↳</span>}
+                    <span className="truncate" title={task.title}>{task.title}</span>
                   </div>
                   
                   {/* Grille Gantt */}
@@ -330,7 +338,7 @@ const GanttView = ({ tasks, dependencies, projectId, onTaskClick, refreshData })
                     <div 
                       id={`task-bar-${task.id}`}
                       onClick={() => onTaskClick(task)}
-                      className={`relative z-10 h-8 rounded-md border text-xs flex items-center px-2 cursor-pointer transition-transform hover:-translate-y-0.5 ${colorClass}`}
+                      className={`relative z-10 ${typeHeight} rounded-md ${typeBorder} text-xs flex items-center px-2 cursor-pointer transition-transform hover:-translate-y-0.5 ${colorClass}`}
                       style={{ 
                         gridColumnStart: style.gridColumnStart, 
                         gridColumnEnd: style.gridColumnEnd 

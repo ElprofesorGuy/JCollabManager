@@ -9,7 +9,7 @@ import * as z from 'zod';
 const projectSchema = z.object({
   title: z.string().min(3, "Le titre doit faire au moins 3 caractères"),
   description: z.string().min(10, "La description doit faire au moins 10 caractères"),
-  ownerEmail: z.string().email("L'adresse email est invalide"),
+  managerEmail: z.string().email("L'adresse email est invalide"),
 });
 
 const ProjectList = () => {
@@ -55,9 +55,9 @@ const ProjectList = () => {
     }
   };
 
-  const filteredProjects = projects.filter(p => 
-    p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProjects = (projects || []).filter(p => 
+    (p.title || '').toLowerCase().includes((searchTerm || '').toLowerCase()) || 
+    (p.description || '').toLowerCase().includes((searchTerm || '').toLowerCase())
   );
 
   if (loading) return (
@@ -121,7 +121,7 @@ const ProjectList = () => {
               <h3 className="text-lg font-bold text-slate-200 mb-2 group-hover:text-white transition-colors">{project.title}</h3>
               <p className="text-slate-400 text-sm line-clamp-3 mb-5 flex-grow leading-relaxed">{project.description}</p>
               <div className="mt-auto pt-4 border-t border-[#1f293d]/50 flex justify-between items-center text-xs text-slate-500 font-semibold">
-                <span>Chef : {project.ownerName || (project.ownerEmail ? project.ownerEmail.split('@')[0] : 'Inconnu')}</span>
+                <span>Chef : {project.managerName || project.managerEmail || 'Inconnu'}</span>
               </div>
             </div>
           </Link>
@@ -173,11 +173,11 @@ const ProjectList = () => {
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Email du Propriétaire</label>
                 <input 
                   type="email"
-                  {...register('ownerEmail')} 
-                  className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.ownerEmail ? 'border-rose-500' : 'border-[#1f293d]'}`}
+                  {...register('managerEmail')} 
+                  className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.managerEmail ? 'border-rose-500' : 'border-[#1f293d]'}`}
                   placeholder="ex: chef.projet@email.com"
                 />
-                {errors.ownerEmail && <p className="text-rose-400 text-xs mt-1">{errors.ownerEmail.message}</p>}
+                {errors.managerEmail && <p className="text-rose-400 text-xs mt-1">{errors.managerEmail.message}</p>}
               </div>
               <div className="flex justify-end gap-3 pt-3 border-t border-[#1f293d]/50">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-400 font-semibold hover:bg-slate-800/50 rounded-xl transition-colors text-sm">
