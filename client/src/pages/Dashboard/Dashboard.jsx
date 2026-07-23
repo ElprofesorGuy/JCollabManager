@@ -5,23 +5,121 @@ import useAuthStore from '../../store/useAuthStore';
 import api from '../../api/axiosConfig';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
+const parseTaskDate = (dateField) => {
+  if (!dateField) return null;
+  if (Array.isArray(dateField)) {
+    const [y, m, d] = dateField;
+    return new Date(y, m - 1, d);
+  }
+  const parts = String(dateField).split('-');
+  if (parts.length === 3) {
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  }
+  return new Date(dateField);
+};
+
+const formatDate = (dateField) => {
+  if (!dateField) return '—';
+  try {
+    if (Array.isArray(dateField)) {
+      const [y, m, d] = dateField;
+      return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
+    }
+    const str = String(dateField);
+    // Handle full ISO datetime like "2026-07-21T10:30:00.000Z"
+    const dateOnly = str.split('T')[0];
+    const parts = dateOnly.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return str;
+  } catch (e) {
+    return '—';
+  }
+};
+
+const getStandardStatus = (task) => {
+  if (task.dateEcheance) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const due = parseTaskDate(task.dateEcheance);
+    if (due && due < today && !/termin|done|end/i.test(task.workflowStatus || "")) {
+      return "EN RETARD";
+    }
+  }
+  if (/termin|done|end|livr/i.test(task.workflowStatus || "")) {
+    return "TERMINÉ";
+  }
+  if (/faire|todo|plan|backlog/i.test(task.workflowStatus || "")) {
+    return "À FAIRE";
+  }
+  return "EN COURS";
+};
+
+const COLUMN_COLORS = ['#64748b', '#06b6d4', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6'];
+
+const getDynamicStats = (tasksList) => {
+  const stats = {
+    "À FAIRE": { name: "À FAIRE", value: 0, color: "#64748b" },
+    "EN COURS": { name: "EN COURS", value: 0, color: "#06b6d4" },
+    "TERMINÉ": { name: "TERMINÉ", value: 0, color: "#10b981" },
+    "EN RETARD": { name: "EN RETARD", value: 0, color: "#f43f5e" }
+  };
+  
+  tasksList.forEach(t => {
+    const std = getStandardStatus(t);
+    stats[std].value += 1;
+  });
+  
+  return Object.values(stats).filter(item => item.value > 0);
+};
+
+const getDeadlineBadge = (parsedDate) => {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const taskDate = new Date(parsedDate);
+  taskDate.setHours(0,0,0,0);
+  
+  const diffTime = taskDate - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) {
+    return <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">En Retard</span>;
+  } else if (diffDays === 0) {
+    return <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Aujourd'hui</span>;
+  } else if (diffDays === 1) {
+    return <span className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Demain</span>;
+  } else if (diffDays <= 7) {
+    return <span className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Sous 7j</span>;
+  }
+  return <span className="bg-slate-800 text-slate-400 border border-slate-700 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">À Venir</span>;
+};
+
 const Dashboard = () => {
   const { user } = useAuthStore();
   const [data, setData] = useState({ projects: [], tasks: [] });
   const [loading, setLoading] = useState(true);
-  const [dashboardTab, setDashboardTab] = useState('personal'); // 'personal' ou 'team'
+  const [dashboardTab, setDashboardTab] = useState('personal'); // 'personal', 'team', or 'admin'
+  const [usersList, setUsersList] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        const projectsUrl = user?.role === 'ADMIN' ? '/v1/project' : '/v1/project/my-projects';
         const [projectsRes, tasksRes] = await Promise.all([
-          api.get('/v1/project'),
+          api.get(projectsUrl),
           api.get('/v1/task?pageSize=1000') // Charge toutes les tâches pour des statistiques complètes
         ]);
         setData({
           projects: projectsRes.data,
           tasks: tasksRes.data.content || tasksRes.data
         });
+        
+        if (user?.role === 'ADMIN') {
+          setLoadingUsers(true);
+          const usersRes = await api.get('/v1/user');
+          setUsersList(usersRes.data || []);
+          setLoadingUsers(false);
+        }
       } catch (error) {
         console.error("Erreur lors du chargement des données", error);
       } finally {
@@ -30,105 +128,77 @@ const Dashboard = () => {
     };
     
     fetchDashboardData();
-  }, []);
+  }, [user]);
+
+  const handleDeleteUser = async (userId) => {
+    if (userId === user?.id) {
+      alert("Vous ne pouvez pas supprimer votre propre compte !");
+      return;
+    }
+    if (!window.confirm("Voulez-vous vraiment supprimer cet utilisateur ? Cette action est irréversible et supprimera ses affectations de tâches.")) return;
+    try {
+      await api.delete(`/v1/user/${userId}`);
+      setUsersList(prev => prev.filter(u => u.id !== userId));
+    } catch (err) {
+      alert("Erreur lors de la suppression de l'utilisateur : " + (err.response?.data?.message || err.message));
+    }
+  };
 
   // Global counts
-  const inProgressTasksCount = data.tasks.filter(t => t.status === 'NOT_FINISH').length;
-  const doneTasksCount = data.tasks.filter(t => t.status === 'END').length;
+  const taskStatsData = getDynamicStats(data.tasks);
   const activeProjectsCount = data.projects.length;
-  const todoTasksCount = data.tasks.filter(t => t.status === 'TO_DO').length;
-  const overdueTasksCount = data.tasks.filter(t => t.status === 'OVERDUE').length;
-
-  const taskStatsData = [
-    { name: 'À FAIRE', value: todoTasksCount, color: '#64748b' },
-    { name: 'EN COURS', value: inProgressTasksCount, color: '#06b6d4' },
-    { name: 'TERMINÉES', value: doneTasksCount, color: '#10b981' },
-    { name: 'EN RETARD', value: overdueTasksCount, color: '#f43f5e' }
-  ].filter(item => item.value > 0);
+  const todoTasksCount = data.tasks.filter(t => getStandardStatus(t) === "À FAIRE").length;
+  const inProgressTasksCount = data.tasks.filter(t => getStandardStatus(t) === "EN COURS").length;
+  const doneTasksCount = data.tasks.filter(t => getStandardStatus(t) === "TERMINÉ").length;
+  const overdueTasksCount = data.tasks.filter(t => getStandardStatus(t) === "EN RETARD").length;
 
   // Current user's specific tasks and counts
   const allMyTasks = data.tasks.filter(t => (t.assign_to === user?.email || t.assign_to === user?.username));
-  const myTodoCount = allMyTasks.filter(t => t.status === 'TO_DO').length;
-  const myInProgressCount = allMyTasks.filter(t => t.status === 'NOT_FINISH').length;
-  const myDoneCount = allMyTasks.filter(t => t.status === 'END').length;
-  const myOverdueCount = allMyTasks.filter(t => t.status === 'OVERDUE').length;
   const myTotalCount = allMyTasks.length;
-
-  const myTaskStatsData = [
-    { name: 'À FAIRE', value: myTodoCount, color: '#64748b' },
-    { name: 'EN COURS', value: myInProgressCount, color: '#06b6d4' },
-    { name: 'TERMINÉES', value: myDoneCount, color: '#10b981' },
-    { name: 'EN RETARD', value: myOverdueCount, color: '#f43f5e' }
-  ].filter(item => item.value > 0);
+  const myTaskStatsData = getDynamicStats(allMyTasks);
+  const myTodoCount = allMyTasks.filter(t => getStandardStatus(t) === "À FAIRE").length;
+  const myInProgressCount = allMyTasks.filter(t => getStandardStatus(t) === "EN COURS").length;
+  const myDoneCount = allMyTasks.filter(t => getStandardStatus(t) === "TERMINÉ").length;
+  const myOverdueCount = allMyTasks.filter(t => getStandardStatus(t) === "EN RETARD").length;
   
   // Get up to 3 most recent projects
   const recentProjects = data.projects.slice(0, 3);
 
-  // Filter tasks assigned to the current user and not END
-  const myTasks = allMyTasks.filter(t => t.status !== 'END').slice(0, 6);
+  // Filter tasks assigned to the current user and not completed (heuristically filtered)
+  const myTasks = allMyTasks.filter(t => !/termin|done|end/i.test(t.workflowStatus || "")).slice(0, 6);
 
-  // Helpers for dates
-  const parseTaskDate = (dateField) => {
-    if (!dateField) return null;
-    if (Array.isArray(dateField)) {
-      const [y, m, d] = dateField;
-      return new Date(y, m - 1, d);
-    }
-    const parts = String(dateField).split('-');
-    if (parts.length === 3) {
-      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-    }
-    return new Date(dateField);
-  };
-
-  const formatDate = (dateField) => {
-    if (!dateField) return null;
-    if (Array.isArray(dateField)) {
-      const [y, m, d] = dateField;
-      return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
-    }
-    const parts = String(dateField).split('-');
-    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    return dateField;
-  };
-
-  // Urgent tasks across all projects
+  // Urgent tasks across all projects based on user's business logic (Point 6)
   const urgentTasks = data.tasks
-    .filter(t => t.status !== 'END' && t.dateEcheance)
-    .map(t => ({
-      ...t,
-      parsedDate: parseTaskDate(t.dateEcheance)
-    }))
-    .filter(t => t.parsedDate !== null)
+    .filter(t => !/termin|done|end/i.test(t.workflowStatus || "") && t.dateEcheance)
+    .map(t => {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const due = parseTaskDate(t.dateEcheance);
+      due.setHours(0,0,0,0);
+      const start = parseTaskDate(t.dateDebut) || new Date(due.getTime() - 24*60*60*1000);
+      start.setHours(0,0,0,0);
+
+      const durationDays = Math.ceil((due - start) / (1000 * 60 * 60 * 24));
+      const remainingDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+      const threshold = durationDays > 7 ? 5 : 3;
+
+      return {
+        ...t,
+        parsedDate: due,
+        isValidUrgent: remainingDays >= 0 && remainingDays <= threshold
+      };
+    })
+    .filter(t => t.isValidUrgent)
     .sort((a, b) => a.parsedDate - b.parsedDate)
     .slice(0, 5);
 
-  const getDeadlineBadge = (parsedDate) => {
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const taskDate = new Date(parsedDate);
-    taskDate.setHours(0,0,0,0);
-    
-    const diffTime = taskDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) {
-      return <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">En Retard</span>;
-    } else if (diffDays === 0) {
-      return <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Aujourd'hui</span>;
-    } else if (diffDays === 1) {
-      return <span className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Demain</span>;
-    } else if (diffDays <= 7) {
-      return <span className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Sous 7j</span>;
-    }
-    return <span className="bg-slate-800 text-slate-400 border border-slate-700 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">À Venir</span>;
-  };
+
 
   // Projects completions percentage
   const projectsProgress = data.projects.map(project => {
     const projectTasks = data.tasks.filter(t => t.projectName === project.title);
     const total = projectTasks.length;
-    const completed = projectTasks.filter(t => t.status === 'END').length;
+    const completed = projectTasks.filter(t => /termin|done|end/i.test(t.workflowStatus || "")).length;
     const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
     return {
       ...project,
@@ -141,19 +211,21 @@ const Dashboard = () => {
   // Workload of Team (Chart Data)
   const workloadData = (() => {
     const userMap = {};
+    const allStatuses = [...new Set(data.tasks.map(t => t.workflowStatus || "Non defini"))];
+    
     data.tasks.forEach(t => {
       if (!t.assign_to) return;
       const name = t.assign_to.split('@')[0];
       if (!userMap[name]) {
-        userMap[name] = { name, 'À FAIRE': 0, 'EN COURS': 0, 'EN RETARD': 0 };
+        userMap[name] = { name };
+        allStatuses.forEach(s => userMap[name][s] = 0);
+        userMap[name]['total'] = 0;
       }
-      if (t.status === 'TO_DO') userMap[name]['À FAIRE'] += 1;
-      else if (t.status === 'NOT_FINISH') userMap[name]['EN COURS'] += 1;
-      else if (t.status === 'OVERDUE') userMap[name]['EN RETARD'] += 1;
+      const statusName = t.workflowStatus || "Non defini";
+      userMap[name][statusName] += 1;
+      userMap[name]['total'] += 1;
     });
-    return Object.values(userMap).sort((a, b) => 
-      (b['À FAIRE'] + b['EN COURS'] + b['EN RETARD']) - (a['À FAIRE'] + a['EN COURS'] + a['EN RETARD'])
-    ).slice(0, 6); // Affiche les 6 utilisateurs les plus actifs
+    return Object.values(userMap).sort((a, b) => b.total - a.total).slice(0, 6);
   })();
 
   if (loading) {
@@ -188,6 +260,15 @@ const Dashboard = () => {
             <Users className="w-4 h-4" />
             <span>Espace Équipe</span>
           </button>
+          {user?.role === 'ADMIN' && (
+            <button 
+              onClick={() => setDashboardTab('admin')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${dashboardTab === 'admin' ? 'bg-primary-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Console Admin</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -206,45 +287,22 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-slate-400">
-              <div className="p-3 bg-slate-500/10 text-slate-400 rounded-xl">
-                <ListTodo className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">À faire</p>
-                <p className="text-2xl font-bold text-white mt-1">{myTodoCount}</p>
-              </div>
-            </div>
-
-            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-cyan-500">
-              <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl">
-                <Clock className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">En cours</p>
-                <p className="text-2xl font-bold text-white mt-1">{myInProgressCount}</p>
-              </div>
-            </div>
-
-            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-emerald-500">
-              <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
-                <CheckCircle className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Terminées</p>
-                <p className="text-2xl font-bold text-white mt-1">{myDoneCount}</p>
-              </div>
-            </div>
-
-            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-rose-500">
-              <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">En retard</p>
-                <p className="text-2xl font-bold text-rose-400 mt-1">{myOverdueCount}</p>
-              </div>
-            </div>
+            {myTaskStatsData.slice(0, 4).map((stat, i) => {
+              const icons = [ListTodo, Clock, CheckCircle, AlertTriangle];
+              const borders = ['border-l-slate-400', 'border-l-cyan-500', 'border-l-emerald-500', 'border-l-rose-500'];
+              const Icon = icons[i % icons.length];
+              return (
+                <div key={stat.name} className={`glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 ${borders[i % borders.length]}`}>
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: stat.color + '22', color: stat.color }}>
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{stat.name}</p>
+                    <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Grille Principale Personnel */}
@@ -279,11 +337,12 @@ const Dashboard = () => {
                           <div className="flex justify-between items-start mb-2">
                             <h3 className="font-bold text-slate-200 text-sm leading-snug truncate pr-2" title={task.title}>{task.title}</h3>
                             <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider shrink-0 ${
-                              task.status === 'OVERDUE' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
-                              task.status === 'TO_DO' ? 'bg-slate-800 text-slate-400 border border-slate-700' :
+                              getStandardStatus(task) === 'EN RETARD' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+                              getStandardStatus(task) === 'À FAIRE' ? 'bg-slate-800 text-slate-400 border border-slate-700' :
+                              getStandardStatus(task) === 'TERMINÉ' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
                               'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                             }`}>
-                              {task.status === 'OVERDUE' ? 'EN RETARD' : task.status === 'TO_DO' ? 'À FAIRE' : 'EN COURS'}
+                              {getStandardStatus(task)}
                             </span>
                           </div>
                           <p className="text-xs text-slate-400 mb-4 line-clamp-2 leading-relaxed">{task.description}</p>
@@ -405,45 +464,22 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-slate-400">
-              <div className="p-3 bg-slate-500/10 text-slate-400 rounded-xl">
-                <ListTodo className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tâches à faire</p>
-                <p className="text-2xl font-bold text-white mt-1">{todoTasksCount}</p>
-              </div>
-            </div>
-            
-            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-cyan-500">
-              <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl">
-                <Clock className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tâches en cours</p>
-                <p className="text-2xl font-bold text-white mt-1">{inProgressTasksCount}</p>
-              </div>
-            </div>
-
-            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-emerald-500">
-              <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
-                <CheckCircle className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tâches terminées</p>
-                <p className="text-2xl font-bold text-white mt-1">{doneTasksCount}</p>
-              </div>
-            </div>
-
-            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-rose-500">
-              <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tâches en retard</p>
-                <p className="text-2xl font-bold text-rose-400 mt-1">{overdueTasksCount}</p>
-              </div>
-            </div>
+            {taskStatsData.slice(0, 4).map((stat, i) => {
+              const icons = [ListTodo, Clock, CheckCircle, AlertTriangle];
+              const borders = ['border-l-slate-400', 'border-l-cyan-500', 'border-l-emerald-500', 'border-l-rose-500'];
+              const Icon = icons[i % icons.length];
+              return (
+                <div key={stat.name} className={`glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 ${borders[i % borders.length]}`}>
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: stat.color + '22', color: stat.color }}>
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{stat.name}</p>
+                    <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Deux colonnes d'analyses */}
@@ -526,9 +562,10 @@ const Dashboard = () => {
                           itemStyle={{ fontSize: '11px' }}
                         />
                         <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                        <Bar dataKey="À FAIRE" stackId="a" fill="#64748b" radius={[0, 0, 0, 0]} />
-                        <Bar dataKey="EN COURS" stackId="a" fill="#06b6d4" radius={[0, 0, 0, 0]} />
-                        <Bar dataKey="EN RETARD" stackId="a" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="À FAIRE" stackId="a" fill="#64748b" radius={[0, 0, 0, 0]} maxBarSize={30} />
+                        <Bar dataKey="EN COURS" stackId="a" fill="#06b6d4" radius={[0, 0, 0, 0]} maxBarSize={30} />
+                        <Bar dataKey="TERMINÉ" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} maxBarSize={30} />
+                        <Bar dataKey="EN RETARD" stackId="a" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={30} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -622,6 +659,114 @@ const Dashboard = () => {
 
           </div>
 
+        </div>
+      )}
+      {dashboardTab === 'admin' && user?.role === 'ADMIN' && (
+        <div className="space-y-8 animate-fade-in">
+          {/* Cartes KPI Admin */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-primary-500">
+              <div className="p-3 bg-primary-500/10 text-primary-400 rounded-xl">
+                <Layers className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Projets</p>
+                <p className="text-2xl font-bold text-white mt-1">{activeProjectsCount}</p>
+              </div>
+            </div>
+
+            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-cyan-500">
+              <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl">
+                <ListTodo className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Tâches</p>
+                <p className="text-2xl font-bold text-white mt-1">{data.tasks.length}</p>
+              </div>
+            </div>
+
+            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-emerald-500">
+              <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                <Users className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Utilisateurs Enregistrés</p>
+                <p className="text-2xl font-bold text-white mt-1">{usersList.length}</p>
+              </div>
+            </div>
+
+            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-purple-500">
+              <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Comptes Admin</p>
+                <p className="text-2xl font-bold text-white mt-1">{usersList.filter(u => u.role === 'ADMIN').length}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Table d'administration des utilisateurs */}
+          <div className="glass-card p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-white">Gestion des Utilisateurs</h2>
+                <p className="text-xs text-slate-500">Liste complète de tous les comptes enregistrés dans l'application.</p>
+              </div>
+            </div>
+
+            {loadingUsers ? (
+              <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary-500" /></div>
+            ) : usersList.length === 0 ? (
+              <p className="text-slate-500 text-center py-4">Aucun utilisateur trouvé.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#1f293d] text-slate-400 text-xs font-bold uppercase tracking-wider">
+                      <th className="py-3.5 px-4">Utilisateur</th>
+                      <th className="py-3.5 px-4">Adresse Email</th>
+                      <th className="py-3.5 px-4">Rôle Système</th>
+                      <th className="py-3.5 px-4">Date d'inscription</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#1f293d]/50 text-slate-300 text-sm">
+                    {usersList.map(u => (
+                      <tr key={u.id} className="hover:bg-[#121824]/20 transition-colors">
+                        <td className="py-4 px-4 font-semibold text-white">{u.username}</td>
+                        <td className="py-4 px-4">{u.email}</td>
+                        <td className="py-4 px-4">
+                          <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                            u.role === 'ADMIN' 
+                              ? 'bg-purple-500/15 text-purple-400 border-purple-500/25' 
+                              : 'bg-slate-800 text-slate-400 border-slate-700'
+                          }`}>
+                            {u.role === 'ADMIN' ? 'Administrateur' : 'Membre'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">{formatDate(u.date_creation || u.dateCreation)}</td>
+                        <td className="py-4 px-4 text-right">
+                          <button 
+                            onClick={() => handleDeleteUser(u.id)}
+                            disabled={u.id === user?.id}
+                            className={`p-2 rounded-lg transition-all ${
+                              u.id === user?.id 
+                                ? 'text-slate-600 cursor-not-allowed opacity-40' 
+                                : 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10'
+                            }`}
+                            title={u.id === user?.id ? "Vous ne pouvez pas supprimer votre propre compte" : "Supprimer cet utilisateur"}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
