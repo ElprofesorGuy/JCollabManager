@@ -63,9 +63,14 @@ public class Project {
                 .findFirst().orElse(null);
     }
 
-    /*public void setUser(String email){
-        Users manager = getUser();
-        manager.setEmail(email);
-    }*/
+    @Override
+    public String toString(){
+        return "Project { " +
+                "id : " + this.id +
+                "title : " + this.title +
+                "description : " + this.description +
+                "date de création : " + this.creation_date +
+                "Mise à jour le : " + this.update_date;
+    }
 
 }

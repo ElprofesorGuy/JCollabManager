@@ -42,7 +42,7 @@ public class ProjectController {
     }
 
     @GetMapping(PROJECT_PATH + "/my-projects")
-    @PreAuthorize("hasRole('MEMBER')")
+    @PreAuthorize("hasRole('MEMBER')  || hasRole('ADMIN')")
     @Operation(summary = "Liste des projets de l'utilisateur", description = "Afficher la liste de tous les projets où l'utilisateur est membre ou owner")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Affichage de la liste des projets réussi"),
@@ -150,6 +150,7 @@ public class ProjectController {
     }
 
     @PostMapping(PROJECT_PATH_ID + "/members")
+    @PreAuthorize("@projectSecurityServiceJPA.hasProjectRole(#projectId, 'MANAGER')  || hasRole('ADMIN')")
     @Operation(summary = "Ajout des membres", description = "Ajouter les membres de l'équipe de projet, le owner est d'office un membre")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié"),
@@ -158,22 +159,25 @@ public class ProjectController {
             @ApiResponse(responseCode = "400", description = "Format d'email invalide. Votre email doit être de la forme xxxxx@xxxxx.com")
     })
     public ResponseEntity<ProjectResponseDTO> addMembers(@PathVariable("projectId") UUID projectId,
-                                                         @RequestBody @Email String memberEmail,
+                                                         @RequestBody String memberEmail,
                                                          @AuthenticationPrincipal UserDetails userDetails,
                                                          ProjectRole projectRole) {
 
+        String cleanedEmail = memberEmail.replaceAll("\"", "").trim();
         Users currentUser = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(()-> new NotFoundException("Utilisateur inexistant"));
-        return ResponseEntity.ok(projectService.addMembers(projectId, memberEmail, currentUser, projectRole));
+        return ResponseEntity.ok(projectService.addMembers(projectId, cleanedEmail, currentUser, projectRole));
     }
     @DeleteMapping(PROJECT_PATH_ID + "/members")
+    @PreAuthorize("@projectSecurityServiceJPA.hasProjectRole(#projectId, 'MANAGER')  || hasRole('ADMIN')")
     @Operation(summary = "Supprimer un membre d'équipe de projet", description = "Supprimer un utilisateur de la liste des membres d'un projet")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié"),
             @ApiResponse(responseCode = "404", description = "Aucun projet trouvé avec cet identifiant"),
             @ApiResponse(responseCode = "200", description = "Membre supprimé de l'équipe de projet")
     })
-    public ResponseEntity<ProjectResponseDTO> removeMembers(@PathVariable("projectId") UUID projectId, @Email String memberEmail){
-        return ResponseEntity.ok(projectService.removeMembers(projectId, memberEmail));
+    public ResponseEntity<ProjectResponseDTO> removeMembers(@PathVariable("projectId") UUID projectId, @RequestBody String memberEmail){
+        String cleanedEmail = memberEmail.replaceAll("\"", "").trim();
+        return ResponseEntity.ok(projectService.removeMembers(projectId, cleanedEmail));
     }
 }

@@ -33,9 +33,11 @@ public class ProjectSecurityServiceJPA implements ProjectSecurityService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetails user = (UserDetails) authentication.getPrincipal();
         Users currentUser = userRepository.findByUsername(user.getUsername()).orElseThrow(() -> new NotFoundException("Utilisateur inexistant"));
+        // ADMIN has full read/write access to all projects
+        if (currentUser.getRole() == SystemRole.ADMIN) return true;
         Project project = projectRepository.findById(projectId).orElseThrow(() -> new NotFoundException("Project inexistant"));
-        //Users user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("Utilisateur inexistant"));
         ProjectMembership projectMembership = projectMembershipRepository.findByProjectAndUser(project, currentUser);
+        if (projectMembership == null) return false;
         return projectMembership.getRole().name().equals(requiredRole);
     }
 
@@ -45,11 +47,11 @@ public class ProjectSecurityServiceJPA implements ProjectSecurityService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetails user = (UserDetails) authentication.getPrincipal();
         Users currentUser = userRepository.findByUsername(user.getUsername()).orElseThrow(() -> new NotFoundException("Utilisateur inexistant"));
+        if (currentUser.getRole() == SystemRole.ADMIN) return true;
         Project project = taskRepository.findById(taskId).get().getProject();
         ProjectMembership membership = projectMembershipRepository.findByProjectIdAndUserId(project.getId(), currentUser.getId());
         if (membership == null) return false;
 
-        // Seul le ADMIN peut supprimer une tâche
         return membership.getRole() == ProjectRole.MANAGER;
     }
     // Vérifie si un utilisateur peut créer une tâche
@@ -58,10 +60,10 @@ public class ProjectSecurityServiceJPA implements ProjectSecurityService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetails user = (UserDetails) authentication.getPrincipal();
         Users currentUser = userRepository.findByUsername(user.getUsername()).orElseThrow(() -> new NotFoundException("Utilisateur inexistant"));
+        if (currentUser.getRole() == SystemRole.ADMIN) return true;
         ProjectMembership membership = projectMembershipRepository.findByProjectIdAndUserId(projectId, currentUser.getId());
         if (membership == null) return false;
 
-        // ADMIN et CONTRIBUTOR peuvent créer des tâches
         return membership.getRole() == ProjectRole.MANAGER || membership.getRole() == ProjectRole.CONTRIBUTOR;
     }
 
@@ -71,10 +73,11 @@ public class ProjectSecurityServiceJPA implements ProjectSecurityService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetails user = (UserDetails) authentication.getPrincipal();
         Users currentUser = userRepository.findByUsername(user.getUsername()).orElseThrow(() -> new NotFoundException("Utilisateur inexistant"));
+        if (currentUser.getRole() == SystemRole.ADMIN) return true;
         ProjectMembership membership = projectMembershipRepository.findByProjectIdAndUserId(projectId, currentUser.getId());
         if (membership == null) return false;
 
-        return membership.getRole() == ProjectRole.MANAGER || membership.getRole() ==ProjectRole.CONTRIBUTOR;
+        return membership.getRole() == ProjectRole.MANAGER || membership.getRole() == ProjectRole.CONTRIBUTOR;
     }
 
     @Override
@@ -95,11 +98,10 @@ public class ProjectSecurityServiceJPA implements ProjectSecurityService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetails user = (UserDetails) authentication.getPrincipal();
         Users currentUser = userRepository.findByUsername(user.getUsername()).orElseThrow(() -> new NotFoundException("Utilisateur inexistant"));
-        System.out.println("Name of the current user : " + currentUser.getUsername());
+        if (currentUser.getRole() == SystemRole.ADMIN) return true;
         ProjectMembership membership = projectMembershipRepository.findByProjectIdAndUserId(projectId, currentUser.getId());
         if (membership == null) return false;
-        System.out.println("Project Role of the current user : " + membership.getRole());
-        return membership.getRole() == ProjectRole.MANAGER || membership.getRole() ==ProjectRole.CONTRIBUTOR || membership.getRole() == ProjectRole.REVIEWER;
+        return membership.getRole() == ProjectRole.MANAGER || membership.getRole() == ProjectRole.CONTRIBUTOR || membership.getRole() == ProjectRole.REVIEWER;
     }
 
     @Override
@@ -107,6 +109,7 @@ public class ProjectSecurityServiceJPA implements ProjectSecurityService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetails user = (UserDetails) authentication.getPrincipal();
         Users currentUser = userRepository.findByUsername(user.getUsername()).orElseThrow(() -> new NotFoundException("Utilisateur inexistant"));
+        if (currentUser.getRole() == SystemRole.ADMIN) return true;
         ProjectMembership membership = projectMembershipRepository.findByProjectIdAndUserId(projectId, currentUser.getId());
         if(membership == null) return false;
 
