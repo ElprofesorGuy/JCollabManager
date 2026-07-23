@@ -143,20 +143,20 @@ public class ProjectServiceJPA implements ProjectService {
         return false;
     }
 
-    @Override
+    /*@Override
     public Project getProjectByTitle(String keyword) {
         return projectRepository.findByTitleContainingIgnoreCase(keyword);
-    }
+    }*/
 
     @Override
-    public ProjectResponseDTO addMembers(UUID projectId, @Email String memberEmail, Users currentUser, ProjectRole projectRole) {
+    public ProjectResponseDTO addMembers(UUID projectId, String memberEmail, Users currentUser, ProjectRole projectRole) {
          Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException(
                         "Projet introuvable : " + projectId
                 ));
-         System.out.println("========== NOM DU PROJET ==========" + project.getTitle());
-        Users newMember = userRepository.findByEmail(memberEmail).orElseThrow(()-> new NotFoundException("Not Found this user"));
-        System.out.println("========== NOM DU NOUVEL ADHERENT : " + newMember.getUsername());
+        Users newMember = userRepository.findByEmail(memberEmail)
+                .orElseThrow(() -> new NotFoundException("Utilisateur avec cet email introuvable : " + memberEmail));
+
         ProjectMembership newMembership = ProjectMembership.builder()
                 .project(project)
                 .user(newMember)

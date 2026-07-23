@@ -1,6 +1,5 @@
 package com.elprofesor.collaborationtool.server.services;
 
-import com.elprofesor.collaborationtool.server.entities.Project;
 import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.models.*;
 import jakarta.validation.constraints.Email;
@@ -18,7 +17,7 @@ public interface ProjectService {
     Boolean deleteProject(UUID id);
     List<ProjectResponseDTO> listProjects();
     List<ProjectResponseDTO> listMyProjects(Users currentUser);
-    ProjectResponseDTO addMembers(UUID projectId, @Email String memberEmail, Users currentUser, ProjectRole projectRole);
+    ProjectResponseDTO addMembers(UUID projectId, String memberEmail, Users currentUser, ProjectRole projectRole);
     ProjectResponseDTO removeMembers(UUID projectId, @Email String memberEmail);
     Set<ProjectMemberResponseDTO> displayMembersOfaProject(UUID projectId);
     /*TaskResponseDTO addTaskToProject(UUID projectId, TaskRequestDTO taskRequestDTO);*/
