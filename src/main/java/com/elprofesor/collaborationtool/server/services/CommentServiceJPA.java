@@ -79,7 +79,7 @@ public class CommentServiceJPA implements CommentService {
         Users currentUser = userRepository.findByUsername(authorEmail).orElseThrow(NotFoundException::new);
         
         // Only author or admin can delete a comment
-        if (!comment.getAuthor().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+        if (!comment.getAuthor().getId().equals(currentUser.getId()) && currentUser.getRole() != SystemRole.ADMIN) {
             throw new SecurityException("Not authorized to delete this comment");
         }
 
@@ -93,7 +93,7 @@ public class CommentServiceJPA implements CommentService {
         Users currentUser = userRepository.findByUsername(userEmail).orElseThrow(NotFoundException::new);
 
         //Only author or admin can modify a comment
-        if (!comment.getAuthor().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+        if (!comment.getAuthor().getId().equals(currentUser.getId()) && currentUser.getRole() != SystemRole.ADMIN) {
             throw new SecurityException("Not authorized to modify this comment");
         }
         comment.setText(newComment.getText());

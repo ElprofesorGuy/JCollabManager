@@ -9,8 +9,6 @@ import org.mapstruct.Mapping;
 @Mapper
 public interface TaskMapper {
     @Mapping(source = "assign_to", target = "assign_to.username")
-    //@Mapping(source = "status.name", target = "workflowStatus")
-    //@Mapping(source = "parentTaskName", target = "parentTask.title")
     Task taskRequestDtoToTask(TaskRequestDTO taskRequestDto);
 
     @Mapping(source = "assign_to.email", target = "assign_to")
@@ -26,5 +24,6 @@ public interface TaskMapper {
     @Mapping(source = "assign_to.email", target = "assign_to")
     @Mapping(source = "project.title", target = "projectName")
     @Mapping(source = "parentTask.title", target = "parentTaskName")
+    @Mapping(source = "status.name", target = "workflowStatus")
     TaskResponseDTO taskToTaskResponseDto(Task task);
 }

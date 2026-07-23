@@ -2,9 +2,7 @@ package com.elprofesor.collaborationtool.server.services;
 
 import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
 import com.elprofesor.collaborationtool.server.entities.*;
-import com.elprofesor.collaborationtool.server.mapper.TaskDependencyMapper;
 import com.elprofesor.collaborationtool.server.mapper.TaskMapper;
-import com.elprofesor.collaborationtool.server.mapper.UserMapper;
 import com.elprofesor.collaborationtool.server.models.*;
 import com.elprofesor.collaborationtool.server.repositories.*;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -30,43 +29,23 @@ public class TaskServiceJPA implements TaskService {
     private final ProjectRepository projectRepository;
     private final TaskDependencyRepository dependencyRepository;
     private final WorkflowStatusRepository workflowStatusRepository;
-    private final ProjectMembershipRepository projectMembershipRepository;
+    private final FileStorageService fileStorageService;
     private final static int DEFAULT_PAGE = 0;
     private final static int DEFAULT_PAGE_SIZE = 20;
 
-    /*@Override
+    @Override
     public TaskResponseDTO uploadAttachment(UUID taskId, MultipartFile file, Users currentUser) {
         Task task = taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
-        Project project = task.getProject();
-        
-        // Vérification des permissions : owner ou membre assigné (ou admin)
-        // Simplifions en autorisant l'owner ou l'utilisateur assigné
-        boolean isOwner = project.getOwner().equals(currentUser);
-        boolean isAssignee = task.getAssign_to() != null && task.getAssign_to().equals(currentUser);
-        
-        if (!isOwner && !isAssignee) {
-            throw new AccessDeniedException("Seul le chef de projet ou la personne assignée peut ajouter une pièce jointe.");
-        }
-
         String fileName = fileStorageService.storeFile(file);
         task.setAttachmentUrl(fileName);
         Task savedTask = taskRepository.save(task);
         
         return taskMapper.taskToTaskResponseDto(savedTask);
-    }*/
+    }
 
-    /*@Override
+    @Override
     public TaskResponseDTO removeAttachment(UUID taskId, Users currentUser) {
         Task task = taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
-        Project project = task.getProject();
-        
-        boolean isOwner = project.getOwner().equals(currentUser);
-        boolean isAssignee = task.getAssign_to() != null && task.getAssign_to().equals(currentUser);
-        
-        if (!isOwner && !isAssignee) {
-            throw new AccessDeniedException("Seul le chef de projet ou la personne assignée peut supprimer une pièce jointe.");
-        }
-
         if (task.getAttachmentUrl() != null) {
             fileStorageService.deleteFile(task.getAttachmentUrl());
             task.setAttachmentUrl(null);
@@ -74,7 +53,7 @@ public class TaskServiceJPA implements TaskService {
         }
         
         return taskMapper.taskToTaskResponseDto(task);
-    }*/
+    }
 
     @Override
     public boolean isPredecessorsAllCompleted(Task task) {
@@ -99,43 +78,16 @@ public class TaskServiceJPA implements TaskService {
         Optional<Users> assignee = Optional.empty();
         Task taskTosave = taskMapper.taskRequestDtoToTask(taskRequestDTO);
         taskTosave.setDateDebut(taskRequestDTO.getDateDebut());
-        //taskTosave.setProject(projectRepository.findByTitleContainingIgnoreCase(taskRequestDTO.getProjectName()));
         taskTosave.setProject(projet.get());
         if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {//Si la chaine assign_to n'est pas vide même après suppression des espaces
             assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());//On récupère l'utilisateur à qui la tâche sera assignée par son email
-            //if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssign_to());//On fait une recherche de l'utilisateur par son nom
-            if(assignee.isPresent()){
-                System.out.println("Utilisateur trouve : " + assignee.get().getEmail());
-            }else{
-                System.out.println("Nous n'avons pas trouvé l'utilisateur dont vous avez renseigné l'émail");
-            }
             taskTosave.setAssign_to(assignee.orElse(null));
-            ProjectMembership projectMembership = ProjectMembership.builder()
-                    .project(projet.get())
-                    .user(assignee.get())
-                    .role(ProjectRole.CONTRIBUTOR)
-                    .joined_at(LocalDate.now())
-                    .invitedBy(currentUser)
-                    .build();
-            projectMembershipRepository.save(projectMembership);
 
         } else {
             taskTosave.setAssign_to(null);
         }
         WorkflowStatus defaultStatus = workflowStatusRepository.findByProjectIdAndOrderIndex(projectId, 0);
         taskTosave.setStatus(defaultStatus);
-        //On vérifie si l'utilisateur connecté est le chef de projet du projet dont on souhaite définir une tâche
-            /*if (assignee.isPresent()) {
-                //projet.get().addMember(assignee.get());//Et ce n'est qu'à ce moment , on peut valider la requête et ajouter assignee comme membre de l'équipe
-                NotificationRequestDTO dto = NotificationRequestDTO.builder()
-                        .type(NotificationType.NOUVELLE_TACHE)
-                        .message("Vous avez une nouvelle tâche qui vous est assignée : " + taskRequestDTO.getTitle())
-                        .recipientUsername(assignee.get().getUsername())
-                        .targetUrl("/projects/" + projectId)
-                        .build();
-                notificationService.saveNewNotification(dto);
-
-            }*/
         projectRepository.save(projet.get());
 
         return taskMapper.taskToTaskResponseDto(taskRepository.save(taskTosave));
@@ -210,15 +162,6 @@ public class TaskServiceJPA implements TaskService {
 
         return false;
     }
-
-    /*@Override
-    public List<TaskResponseDTO> listOverdueTask() {
-        return taskRepository.findByDateEcheanceBeforeAndStatusNot(LocalDate.now(), Status.END)
-                .stream()
-                .map(taskMapper::taskToTaskResponseDto)
-                .collect(Collectors.toList());
-
-    }*/
 
 
     public PageRequest buildPageRequest(Integer pageNumber, Integer pageSize){
