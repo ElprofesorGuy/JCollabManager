@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Layers, ArrowLeft, Plus, Loader2, Users, Trash2, UserPlus, AlertCircle, Edit2, AlertTriangle, Calendar, Paperclip, Download, Upload, CheckCircle, Pencil, Check, X } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
@@ -27,7 +27,7 @@ const formatDate = (dateEcheance) => {
   if (!dateEcheance) return null;
   if (Array.isArray(dateEcheance)) {
     const [y, m, d] = dateEcheance;
-    return `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${y}`;
+    return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
   }
   const parts = String(dateEcheance).split("-");
   if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -49,7 +49,7 @@ const isSubmissionLate = (subDate, echDate) => {
   if (!subDate || !echDate) return false;
   const s = parseDateToObj(subDate);
   const e = parseDateToObj(echDate);
-  s.setHours(0,0,0,0); e.setHours(0,0,0,0);
+  s.setHours(0, 0, 0, 0); e.setHours(0, 0, 0, 0);
   return s > e;
 };
 
@@ -62,10 +62,10 @@ const projectSchema = z.object({
 const TaskTypeBadge = ({ type }) => {
   if (!type) return null;
   const config = {
-    EPIC: { color: "bg-purple-500/20 text-purple-400 border-purple-500/30", icon: "ðŸ’Ž" },
-    STORY: { color: "bg-blue-500/20 text-blue-400 border-blue-500/30", icon: "ðŸ“˜" },
-    TASK: { color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", icon: "ðŸ“" },
-    SUBTASK: { color: "bg-slate-500/20 text-slate-400 border-slate-500/30", icon: "â†³" }
+    EPIC: { color: "bg-purple-500/20 text-purple-400 border-purple-500/30", icon: "💎" },
+    STORY: { color: "bg-blue-500/20 text-blue-400 border-blue-500/30", icon: "📖" },
+    TASK: { color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", icon: "📋" },
+    SUBTASK: { color: "bg-slate-500/20 text-slate-400 border-slate-500/30", icon: "↳" }
   };
   const current = config[type] || config.TASK;
   return (
@@ -77,7 +77,7 @@ const TaskTypeBadge = ({ type }) => {
 
 const COLUMN_COLORS = [
   { border: "border-l-slate-500", badge: "bg-slate-800 text-slate-400 border-slate-700", assignee: "text-primary-400 bg-primary-500/10 border-primary-500/20" },
-  { border: "border-l-cyan-500",  badge: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30", assignee: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20" },
+  { border: "border-l-cyan-500", badge: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30", assignee: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20" },
   { border: "border-l-emerald-500", badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", assignee: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
   { border: "border-l-rose-500", badge: "bg-rose-500/20 text-rose-400 border-rose-500/30", assignee: "text-rose-400 bg-rose-500/10 border-rose-500/20" },
   { border: "border-l-amber-500", badge: "bg-amber-500/20 text-amber-400 border-amber-500/30", assignee: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
@@ -88,7 +88,7 @@ const PROJECT_ROLES = ["MANAGER", "CONTRIBUTOR", "REVIEWER", "VIEWER"];
 
 const getColorForIndex = (i) => COLUMN_COLORS[i % COLUMN_COLORS.length];
 
-const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDeleteTask, onRenameStatus, canEdit }) => {
+const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDeleteTask, onRenameStatus, onDeleteStatus, canEdit, canDeleteTask }) => {
   const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState(status.name);
   const inputRef = useRef(null);
@@ -115,7 +115,7 @@ const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDele
   };
 
   return (
-    <div className="bg-[#121824]/30 border border-[#1f293d] rounded-2xl p-4 flex flex-col h-[600px] shadow-lg min-w-[260px]">
+    <div className="bg-[#121824]/30 border border-[#1f293d] rounded-2xl p-4 flex flex-col h-[600px] shadow-lg w-full">
       <h3 className="font-bold text-slate-300 mb-4 flex items-center justify-between gap-2">
         {editing ? (
           <div className="flex items-center gap-1 flex-1">
@@ -130,7 +130,19 @@ const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDele
             {canEdit && <Pencil className="w-3 h-3 text-slate-600 opacity-0 group-hover/col:opacity-100 transition-opacity" />}
           </span>
         )}
-        <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold border shrink-0 ${colorConfig.badge}`}>{tasks.length}</span>
+        <div className="flex items-center gap-2">
+          {status.completed && (
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1" title="Statut final (complétion)">
+              ✓ Final
+            </span>
+          )}
+          {canEdit && (
+            <button onClick={() => onDeleteStatus(status.id)} className="text-slate-500 hover:text-rose-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Supprimer ce statut">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+          <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold border shrink-0 ${colorConfig.badge}`}>{tasks.length}</span>
+        </div>
       </h3>
       <div className="flex-grow overflow-y-auto space-y-3 custom-scrollbar pr-1">
         {tasks.length === 0 ? (
@@ -147,7 +159,7 @@ const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDele
                     {task.parentTaskName && <span className="text-[10px] text-slate-500 font-medium">Parent: {task.parentTaskName}</span>}
                   </div>
                 </div>
-                {isOwner && (
+                {canDeleteTask && (
                   <button onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
                     className="text-slate-500 hover:text-rose-400 opacity-0 group-hover/task:opacity-100 transition-opacity p-1" title="Supprimer">
                     <Trash2 className="w-3.5 h-3.5" />
@@ -159,7 +171,7 @@ const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDele
                 {task.assign_to && (
                   <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${colorConfig.assignee}`}>
                     <Users className="w-3 h-3" />
-                    <span>{task.assign_to.split("@")[0]}</span>
+                    <span>{task.assign_to}</span>
                   </div>
                 )}
                 <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${task.dateEcheance ? "text-slate-400 bg-slate-800/80 border border-slate-700" : "text-slate-500 bg-slate-900/50 italic border border-slate-800"}`}>
@@ -198,10 +210,15 @@ const ProjectDetail = () => {
   const { user } = useAuthStore();
   const isOwner = user?.email === project?.managerEmail || user?.username === project?.managerEmail;
   const isAdmin = user?.role === "ADMIN";
+  const isProjectManager = members.some(m => (m.email === user?.email || m.username === user?.username) && m.projectRole === "MANAGER");
   const canEdit = isOwner || isAdmin;
+  const canDeleteTask = isOwner || isProjectManager || isAdmin;
   const [selectedTask, setSelectedTask] = useState(null);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isDeleteProjectModalOpen, setIsDeleteProjectModalOpen] = useState(false);
+  const [isNewStatusModalOpen, setIsNewStatusModalOpen] = useState(false);
+  const [newStatusName, setNewStatusName] = useState("");
+  const [statusError, setStatusError] = useState("");
   const [projectError, setProjectError] = useState("");
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(taskSchema) });
@@ -222,7 +239,7 @@ const ProjectDetail = () => {
       try {
         const depRes = await api.get(`/v1/projects/${id}/dependencies`);
         setDependencies(Array.isArray(depRes.data) ? depRes.data : []);
-      } catch(e) { setDependencies([]); }
+      } catch (e) { setDependencies([]); }
     } catch (err) {
       setError("Impossible de charger les details du projet.");
     } finally {
@@ -250,12 +267,12 @@ const ProjectDetail = () => {
     if (task) {
       let isoDateEcheance = "";
       if (task.dateEcheance) {
-        if (Array.isArray(task.dateEcheance)) { const [y,m,d] = task.dateEcheance; isoDateEcheance = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
+        if (Array.isArray(task.dateEcheance)) { const [y, m, d] = task.dateEcheance; isoDateEcheance = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
         else { isoDateEcheance = String(task.dateEcheance).slice(0, 10); }
       }
       let isoDateDebut = "";
       if (task.dateDebut) {
-        if (Array.isArray(task.dateDebut)) { const [y,m,d] = task.dateDebut; isoDateDebut = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
+        if (Array.isArray(task.dateDebut)) { const [y, m, d] = task.dateDebut; isoDateDebut = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
         else { isoDateDebut = String(task.dateDebut).slice(0, 10); }
       }
       setSelectedPredecessors(task.id ? dependencies.filter(d => d.successorId === task.id).map(d => d.predecessorId) : []);
@@ -275,10 +292,10 @@ const ProjectDetail = () => {
         await api.put(`/v1/task/${selectedTask.id}`, payload);
         const currentPredecessors = dependencies.filter(d => d.successorId === selectedTask.id).map(d => d.predecessorId);
         for (let dep of dependencies.filter(d => d.successorId === selectedTask.id && !selectedPredecessors.includes(d.predecessorId))) {
-          try { await api.delete(`/v1/tasks/dependencies/${dep.dependencyId}`); } catch(e) {}
+          try { await api.delete(`/v1/tasks/dependencies/${dep.dependencyId}`); } catch (e) { }
         }
         for (let pId of selectedPredecessors.filter(pId => !currentPredecessors.includes(pId))) {
-          try { await api.post(`/v1/tasks/dependencies`, { predecessorId: pId, successorId: selectedTask.id, projectId: project.id }); } catch(e) {}
+          try { await api.post(`/v1/tasks/dependencies`, { predecessorId: pId, successorId: selectedTask.id, projectId: project.id }); } catch (e) { }
         }
       } else {
         await api.post(`/v1/task/${project.id}`, payload);
@@ -348,6 +365,73 @@ const ProjectDetail = () => {
     } catch (err) { console.error("Erreur renommage statut", err); }
   };
 
+  const onDeleteStatus = async (statusId) => {
+    if (!window.confirm("Voulez-vous vraiment supprimer ce statut ? Toutes les tâches associées pourraient être supprimées ou orphelines.")) return;
+    try {
+      await api.delete(`/v1/projects/${id}/statuses/${statusId}`);
+      fetchProjectData();
+    } catch (err) { console.error("Erreur suppression statut", err); alert(err.response?.data?.message || "Erreur lors de la suppression."); }
+  };
+
+  const onAddStatus = async (e) => {
+    e.preventDefault();
+    if (!newStatusName.trim()) return;
+    try {
+      setStatusError("");
+      const orderIndex = statuses.length;
+      // Mark the new status as completed: true since it's added at the end, and update previous last status to false
+      await api.post(`/v1/projects/${id}/statuses`, { name: newStatusName, orderIndex, completed: true });
+      if (statuses.length > 0) {
+        const lastStatus = statuses[statuses.length - 1];
+        await api.put(`/v1/projects/${id}/statuses/${lastStatus.id}`, { name: lastStatus.name, orderIndex: lastStatus.orderIndex, completed: false });
+      }
+      setNewStatusName("");
+      setIsNewStatusModalOpen(false);
+      fetchProjectData();
+    } catch (err) {
+      setStatusError(err.response?.data?.message || err.response?.data || "Erreur lors de l'ajout du statut.");
+    }
+  };
+
+  const [draggedStatusIndex, setDraggedStatusIndex] = useState(null);
+
+  const onDragStart = (e, index) => {
+    setDraggedStatusIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const onDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const onDrop = async (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedStatusIndex === null || draggedStatusIndex === targetIndex) return;
+
+    const newStatuses = [...statuses];
+    const draggedItem = newStatuses[draggedStatusIndex];
+    newStatuses.splice(draggedStatusIndex, 1);
+    newStatuses.splice(targetIndex, 0, draggedItem);
+    
+    // The last column always becomes completed = true, all others completed = false
+    const updatedStatuses = newStatuses.map((s, idx) => ({
+      ...s,
+      orderIndex: idx,
+      completed: idx === newStatuses.length - 1
+    }));
+    setStatuses(updatedStatuses);
+    
+    try {
+       await Promise.all(updatedStatuses.map(s => 
+          api.put(`/v1/projects/${id}/statuses/${s.id}`, { name: s.name, orderIndex: s.orderIndex, completed: s.completed })
+       ));
+    } catch (error) {
+       console.error("Erreur lors de la mise à jour de l'ordre", error);
+       fetchProjectData();
+    }
+    setDraggedStatusIndex(null);
+  };
+
   const onEditProjectSubmit = async (data) => {
     try {
       setProjectError("");
@@ -409,6 +493,7 @@ const ProjectDetail = () => {
           <div className="flex gap-2.5">
             <button onClick={exportToPDF} className="flex items-center gap-2 bg-[#121824]/60 border border-[#1f293d] hover:border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl transition-all text-sm font-semibold">Exporter PDF</button>
             <button onClick={openMembersModal} className="flex items-center gap-2 bg-[#121824]/60 border border-[#1f293d] hover:border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl transition-all text-sm font-semibold"><Users className="w-4 h-4" /> Membres</button>
+            {canEdit && <button onClick={() => setIsNewStatusModalOpen(true)} className="flex items-center gap-2 bg-[#121824]/60 border border-[#1f293d] hover:border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl transition-all text-sm font-semibold"><Plus className="w-4 h-4" /> Nouveau statut</button>}
             <button onClick={() => openTaskModal()} className="flex items-center gap-2 bg-primary-600 hover:bg-primary-500 text-white px-4 py-2 rounded-xl transition-all text-sm font-semibold"><Plus className="w-4 h-4" /> Nouvelle tache</button>
           </div>
         </div>
@@ -429,11 +514,23 @@ const ProjectDetail = () => {
               <p className="text-slate-500 text-sm mt-1">Les statuts sont crees automatiquement a la creation du projet.</p>
             </div>
           ) : (
-            <div className="flex gap-6 overflow-x-auto pb-4">
+            <div className="flex gap-6 overflow-x-auto pb-4 w-full">
               {statuses.map((status, index) => {
                 const color = getColorForIndex(index);
                 const columnTasks = tasks.filter(t => t.workflowStatus === status.name);
-                return (<KanbanColumn key={status.id} status={status} colorConfig={color} tasks={columnTasks} isOwner={isOwner} canEdit={canEdit} onTaskClick={openTaskModal} onDeleteTask={onDeleteTask} onRenameStatus={onRenameStatus} />);
+                return (
+                  <div
+                    key={status.id}
+                    draggable={canEdit}
+                    onDragStart={(e) => onDragStart(e, index)}
+                    onDragEnd={() => setDraggedStatusIndex(null)}
+                    onDragOver={onDragOver}
+                    onDrop={(e) => onDrop(e, index)}
+                    className={`transition-opacity ${draggedStatusIndex === index ? "opacity-40 cursor-grabbing" : "opacity-100 cursor-grab"} group flex-1 min-w-[280px] max-w-[400px]`}
+                  >
+                    <KanbanColumn status={status} colorConfig={color} tasks={columnTasks} isOwner={isOwner} canEdit={canEdit} canDeleteTask={canDeleteTask} onTaskClick={openTaskModal} onDeleteTask={onDeleteTask} onRenameStatus={onRenameStatus} onDeleteStatus={onDeleteStatus} />
+                  </div>
+                );
               })}
             </div>
           )}
@@ -453,7 +550,7 @@ const ProjectDetail = () => {
                 <div className="flex gap-2">
                   <input type="email" required placeholder="Email du nouveau membre..." value={newMemberEmail} onChange={(e) => setNewMemberEmail(e.target.value)} className="flex-grow px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600" />
                   <select value={newMemberRole} onChange={(e) => setNewMemberRole(e.target.value)} className="px-3 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
-                    {PROJECT_ROLES.map(role => (<option key={role} value={role}>{role.charAt(0) + role.slice(1).toLowerCase()}</option>))}
+                    {(members.some(m => m.projectRole === "MANAGER") ? PROJECT_ROLES.filter(r => r !== "MANAGER") : PROJECT_ROLES).map(role => (<option key={role} value={role}>{role.charAt(0) + role.slice(1).toLowerCase()}</option>))}
                   </select>
                 </div>
                 <button type="submit" disabled={loadingMembers || !newMemberEmail} className="w-full bg-primary-600 hover:bg-primary-500 text-white px-4 py-2 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 text-sm font-semibold">
@@ -576,7 +673,6 @@ const ProjectDetail = () => {
                             onChange={(e) => { if (e.target.checked) { setSelectedPredecessors([...selectedPredecessors, t.id]); } else { setSelectedPredecessors(selectedPredecessors.filter(pid => pid !== t.id)); } }} />
                           <div>
                             <p className="text-sm font-semibold text-slate-300 group-hover:text-primary-400 transition-colors">{t.title}</p>
-                            <p className="text-xs text-slate-500">{t.workflowStatus || "-"}</p>
                           </div>
                         </label>
                       ))}
@@ -659,6 +755,31 @@ const ProjectDetail = () => {
           </div>
         </div>
       )}
+
+      {isNewStatusModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0f172a] border border-[#1f293d] rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in">
+            <div className="px-6 py-4 border-b border-[#1f293d] flex justify-between items-center bg-[#121824]/50">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2"><Plus className="w-5 h-5 text-primary-400" /> Nouveau Statut</h2>
+              <button onClick={() => setIsNewStatusModalOpen(false)} className="text-slate-400 hover:text-white text-xl">x</button>
+            </div>
+            <div className="p-6">
+              {statusError && (<div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-start gap-2"><AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" /><span>{statusError}</span></div>)}
+              <form onSubmit={onAddStatus} className="space-y-4">
+                <div>
+                  <label className="block text-slate-400 text-xs font-semibold mb-1.5 uppercase tracking-wider">Nom du statut</label>
+                  <input type="text" required placeholder="Ex: En Test" value={newStatusName} onChange={(e) => setNewStatusName(e.target.value)} className="w-full px-3.5 py-2.5 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600" />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setIsNewStatusModalOpen(false)} className="flex-1 bg-[#121824] border border-[#1f293d] hover:border-slate-700 text-slate-300 py-2.5 rounded-xl transition-colors font-semibold text-sm">Annuler</button>
+                  <button type="submit" disabled={!newStatusName.trim()} className="flex-1 bg-primary-600 hover:bg-primary-500 text-white py-2.5 rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> Ajouter</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

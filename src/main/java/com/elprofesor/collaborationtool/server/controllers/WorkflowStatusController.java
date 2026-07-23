@@ -16,13 +16,13 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@PreAuthorize("isAuthenticated()")
+@PreAuthorize("isAuthenticated() || hasRole('ADMIN')")
 public class WorkflowStatusController {
     private final WorkflowStatusService workflowStatusService;
 
     @PostMapping("/api/v1/projects/{projectId}/statuses")
-    public ResponseEntity createNewWorkflowStatus(WorkflowStatusRequestDTO dto, @PathVariable("projectId") UUID projectId){
-        WorkflowStatusResponseDTO newWorflowStatus = workflowStatusService.addWorkflowStatus(dto);
+    public ResponseEntity createNewWorkflowStatus(@RequestBody WorkflowStatusRequestDTO dto, @PathVariable("projectId") UUID projectId){
+        WorkflowStatusResponseDTO newWorflowStatus = workflowStatusService.addWorkflowStatus(dto, projectId);
         HttpHeaders header = new HttpHeaders();
         header.add("Location", "/api/v1/projects/" + projectId + "/statuses/" + newWorflowStatus.getId());
         return new ResponseEntity(header, HttpStatus.CREATED);
@@ -34,12 +34,20 @@ public class WorkflowStatusController {
         return workflowStatusService.getWorkflowStatusOfProject(projectId);
     }
 
-    //@PreAuthorize("@projectSecurityServiceJPA.canModifyStatusName(#projectId)")
     @PreAuthorize("@projectSecurityServiceJPA.isProjectMember(#projectId)")
     @PutMapping("/api/v1/projects/{projectId}/statuses/{workflowStatusId}")
-    public ResponseEntity updateWorkflowStatus(@RequestBody WorkflowStatusRequestDTO requestDTO, @PathVariable("workflowStatusId") UUID id){
+    public ResponseEntity updateWorkflowStatus(@PathVariable("projectId") UUID projectId, @RequestBody WorkflowStatusRequestDTO requestDTO, @PathVariable("workflowStatusId") UUID id){
         if(workflowStatusService.modifyWorkflowStatusOfProject(id, requestDTO).isEmpty()){
             throw new NotFoundException("WorkflowStatus not found");
+        }
+
+        return new ResponseEntity(HttpStatus.NO_CONTENT);
+    }
+
+    @DeleteMapping("/api/v1/projects/{projectId}/statuses/{workflowStatusId}")
+    public ResponseEntity deleteWorkflowStatus(@PathVariable("workflowStatusId") UUID workflowStatusId){
+        if(!workflowStatusService.deleteStatus(workflowStatusId)){
+            throw new NotFoundException("Status de tâche inexistant");
         }
 
         return new ResponseEntity(HttpStatus.NO_CONTENT);
