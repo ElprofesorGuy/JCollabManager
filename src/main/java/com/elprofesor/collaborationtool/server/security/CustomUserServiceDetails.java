@@ -1,5 +1,6 @@
 package com.elprofesor.collaborationtool.server.security;
 
+import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
 import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,5 +35,12 @@ public class CustomUserServiceDetails implements UserDetailsService {
                 .build();
 
         return userDetails;
+    }
+
+    public Users getCurrentUser(UserDetails userDetails){
+        return userRepository.findByUsername(userDetails.getUsername()).orElseThrow(()->
+            new NotFoundException("Utilisateur inexistant")
+        );
+
     }
 }
