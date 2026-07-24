@@ -34,7 +34,7 @@ public class TaskServiceJPA implements TaskService {
     private final static int DEFAULT_PAGE_SIZE = 20;
 
     @Override
-    public TaskResponseDTO uploadAttachment(UUID taskId, MultipartFile file, Users currentUser) {
+    public TaskResponseDTO uploadAttachment(UUID taskId, MultipartFile file) {
         Task task = taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
         String fileName = fileStorageService.storeFile(file);
         task.setAttachmentUrl(fileName);
@@ -44,7 +44,7 @@ public class TaskServiceJPA implements TaskService {
     }
 
     @Override
-    public TaskResponseDTO removeAttachment(UUID taskId, Users currentUser) {
+    public TaskResponseDTO removeAttachment(UUID taskId) {
         Task task = taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
         if (task.getAttachmentUrl() != null) {
             fileStorageService.deleteFile(task.getAttachmentUrl());
@@ -73,12 +73,13 @@ public class TaskServiceJPA implements TaskService {
     }
 
     @Override
-    public TaskResponseDTO saveNewTask(UUID projectId, TaskRequestDTO taskRequestDTO, Users currentUser) {
-        Optional<Project> projet = projectRepository.findById(projectId);
+    public TaskResponseDTO saveNewTask(UUID projectId, TaskRequestDTO taskRequestDTO) {
+        Project projet = projectRepository.findById(projectId).orElseThrow(()->
+                new NotFoundException("Projet inexistant"));
         Optional<Users> assignee = Optional.empty();
         Task taskTosave = taskMapper.taskRequestDtoToTask(taskRequestDTO);
         taskTosave.setDateDebut(taskRequestDTO.getDateDebut());
-        taskTosave.setProject(projet.get());
+        taskTosave.setProject(projet);
         if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {//Si la chaine assign_to n'est pas vide même après suppression des espaces
             assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());//On récupère l'utilisateur à qui la tâche sera assignée par son email
             taskTosave.setAssign_to(assignee.orElse(null));
@@ -88,14 +89,14 @@ public class TaskServiceJPA implements TaskService {
         }
         WorkflowStatus defaultStatus = workflowStatusRepository.findByProjectIdAndOrderIndex(projectId, 0);
         taskTosave.setStatus(defaultStatus);
-        projectRepository.save(projet.get());
+        projectRepository.save(projet);
 
         return taskMapper.taskToTaskResponseDto(taskRepository.save(taskTosave));
 
     }
 
     @Override
-    public Optional<TaskRequestDTO> updateTask(UUID id, TaskRequestDTO taskRequestDTO, Users currentUser) {
+    public Optional<TaskRequestDTO> updateTask(UUID id, TaskRequestDTO taskRequestDTO) {
        Task tache = taskRepository.findById(id).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
         WorkflowStatus workflowStatus = workflowStatusRepository.findByNameIgnoringCase(taskRequestDTO.getWorkflowStatus()).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
         Project projet = tache.getProject();
@@ -152,15 +153,8 @@ public class TaskServiceJPA implements TaskService {
     }
 
     @Override
-    public Boolean deleteTask(UUID id, Users currentUser) {
-        Optional<Task> tache = taskRepository.findById(id);
-        Project projet = projectRepository.findByTitleContainingIgnoreCase(tache.get().getProject().getTitle());
-        if(taskRepository.existsById(id)){
-            taskRepository.deleteById(id);
-            return true;
-        }
-
-        return false;
+    public void deleteTask(UUID id) {
+        taskRepository.deleteById(id);
     }
 
 

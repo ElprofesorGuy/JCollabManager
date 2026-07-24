@@ -18,6 +18,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.UUID;
 
 @RestController
@@ -73,12 +75,8 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Tâche inexsitante"),
             @ApiResponse(responseCode = "204", description = "Tâche supprimée")
     })
-    public ResponseEntity deleteTask(@PathVariable("taskId") UUID taskId, @AuthenticationPrincipal UserDetails userDetails){
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-        if(! taskService.deleteTask(taskId, currentUser)){
-            throw new NotFoundException();
-        }
+    public ResponseEntity deleteTask(@PathVariable("taskId") UUID taskId){
+        taskService.deleteTask(taskId);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 
@@ -90,11 +88,9 @@ public class TaskController {
             @ApiResponse(responseCode = "201", description = "Tâche créée avec succès"),
             @ApiResponse(responseCode = "500", description = "Verrouillage optimiste : Le champ id doit être vide/supprimez-le.")
     })
-    public ResponseEntity saveNewTask(@PathVariable("projectId") UUID projectId, @RequestBody TaskRequestDTO taskRequestDTO, @AuthenticationPrincipal UserDetails userDetails){
+    public ResponseEntity saveNewTask(@PathVariable("projectId") UUID projectId, @RequestBody TaskRequestDTO taskRequestDTO){
 
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-        TaskResponseDTO newTask = taskService.saveNewTask(projectId, taskRequestDTO, currentUser);
+        TaskResponseDTO newTask = taskService.saveNewTask(projectId, taskRequestDTO);
         HttpHeaders header = new HttpHeaders();
         header.add("Location", "/api/v1/task/" + newTask.getId());
         return new ResponseEntity(HttpStatus.CREATED);
@@ -109,50 +105,31 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Tâche inexistante, vérifiez l'identifiant de la tâche"),
             @ApiResponse(responseCode = "500", description = "Vous essayez sûrement de marquer manuellement une tâche comme OVERDUE")
     })
-    public ResponseEntity updateExistingTask(@PathVariable UUID taskId, @RequestBody TaskRequestDTO taskRequestDTO, @AuthenticationPrincipal UserDetails userDetails){
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-        if(taskService.updateTask(taskId, taskRequestDTO, currentUser).isEmpty()){
+    public ResponseEntity updateExistingTask(@PathVariable UUID taskId, @RequestBody TaskRequestDTO taskRequestDTO){
+        if(taskService.updateTask(taskId, taskRequestDTO).isEmpty()){
             throw new NotFoundException();
         }
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 
-    /*@GetMapping(TASK_PATH + "/overdue")
-    @Operation(summary = "Liste des tâches marquées en retard", description = "Afficher la liste des tâches qui sont marquées comme étant des tâches en retard")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Liste affichée avec succès"),
-            @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter")
-    })
-    public List<TaskResponseDTO> displayOverdueTasks(){
-        return taskService.listOverdueTask();
-    }*/
-    /*@PostMapping(TASK_PATH_ID + "/upload")
+    @PostMapping(TASK_PATH_ID + "/upload")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Uploader une pièce jointe", description = "Permet de joindre un fichier (document, image) à une tâche.")
     public ResponseEntity<TaskResponseDTO> uploadAttachment(
             @PathVariable("taskId") UUID taskId,
-            @RequestParam("file") MultipartFile file,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-        
-        TaskResponseDTO updatedTask = taskService.uploadAttachment(taskId, file, currentUser);
-        return ResponseEntity.ok(updatedTask);
-    }*/
+            @RequestParam("file") MultipartFile file) {
 
-    /*@DeleteMapping(TASK_PATH_ID + "/attachment")
+        TaskResponseDTO updatedTask = taskService.uploadAttachment(taskId, file);
+        return ResponseEntity.ok(updatedTask);
+    }
+
+    @DeleteMapping(TASK_PATH_ID + "/attachment")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Supprimer une pièce jointe", description = "Permet de supprimer le fichier attaché à une tâche.")
     public ResponseEntity<TaskResponseDTO> removeAttachment(
-            @PathVariable("taskId") UUID taskId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-        
-        TaskResponseDTO updatedTask = taskService.removeAttachment(taskId, currentUser);
+            @PathVariable("taskId") UUID taskId) {
+
+        TaskResponseDTO updatedTask = taskService.removeAttachment(taskId);
         return ResponseEntity.ok(updatedTask);
-    }*/
+    }
 }
