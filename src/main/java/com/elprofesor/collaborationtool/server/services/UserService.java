@@ -3,6 +3,7 @@ package com.elprofesor.collaborationtool.server.services;
 import com.elprofesor.collaborationtool.server.models.ProfileUpdateRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserResponseDTO;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,5 +16,5 @@ public interface UserService {
     UserResponseDTO saveNewUser(UserRequestDTO newUser);
     Optional<UserResponseDTO> updateUser(UserRequestDTO existingUser, UUID userId);
     List<UserResponseDTO> getUsersList();
-    Optional<UserResponseDTO> updateProfile(ProfileUpdateRequestDTO profileRequest, UUID userId, String currentUserEmail);
+    Optional<UserResponseDTO> updateProfile(ProfileUpdateRequestDTO profileRequest, UUID userId, UserDetails userDetails);
 }

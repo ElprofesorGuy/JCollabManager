@@ -6,7 +6,9 @@ import com.elprofesor.collaborationtool.server.models.ProfileUpdateRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserResponseDTO;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
+import com.elprofesor.collaborationtool.server.security.CustomUserServiceDetails;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -25,6 +27,7 @@ public class UserServiceJPA implements UserService{
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final CustomUserServiceDetails customUserDetails;
 
     @Override
     public Optional<UserResponseDTO> getUser(UUID id) {
@@ -73,13 +76,12 @@ public class UserServiceJPA implements UserService{
     }
 
     @Override
-    public Optional<UserResponseDTO> updateProfile(ProfileUpdateRequestDTO profileRequest, UUID userId, String currentUserEmail) {
+    public Optional<UserResponseDTO> updateProfile(ProfileUpdateRequestDTO profileRequest, UUID userId, UserDetails userDetails) {
+        String currentUserEmail = customUserDetails.getCurrentUser(userDetails).getEmail();
         AtomicReference<Optional<UserResponseDTO>> atomicReference = new AtomicReference<>();
         userRepository.findById(userId).ifPresentOrElse(foundUser -> {
             // Security check: Only allow users to update their own profile (or admin, but we check email here for simplicity)
             if (!foundUser.getEmail().equals(currentUserEmail)) {
-                System.out.println("Found User email : " + foundUser.getEmail());
-                System.out.println("Current user email : " + currentUserEmail);
                 throw new SecurityException("You can only update your own profile");
             }
             
