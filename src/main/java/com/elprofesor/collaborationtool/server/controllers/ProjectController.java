@@ -7,7 +7,6 @@ import com.elprofesor.collaborationtool.server.services.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -50,8 +49,7 @@ public class ProjectController {
     })
 
     public List<ProjectResponseDTO> displayMyProjects(@AuthenticationPrincipal UserDetails userDetails){
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
-        return projectService.listMyProjects(currentUser);
+        return projectService.listMyProjects(userDetails);
     }
 
     @GetMapping(PROJECT_PATH_ID)
@@ -72,9 +70,8 @@ public class ProjectController {
             @ApiResponse(responseCode = "201", description = "Projet créé avec succès"),
             @ApiResponse(responseCode = "500", description = "Verrouillage optimiste : Le champ id doit être vide/supprimez-le ou email incorrecte, ne correspond à aucun utilisateur.")
     })
-    public ResponseEntity saveNewProject(@RequestBody ProjectRequestDTO projectRequestDTO, @AuthenticationPrincipal UserDetails userDetails){
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
-        ProjectResponseDTO newProject = projectService.saveNewProject(projectRequestDTO, currentUser);
+    public ResponseEntity saveNewProject(@RequestBody ProjectRequestDTO projectRequestDTO){
+        ProjectResponseDTO newProject = projectService.saveNewProject(projectRequestDTO);
         HttpHeaders headers = new HttpHeaders();
         headers.add("Location", PROJECT_PATH + "/" + newProject.getId());
         return new ResponseEntity(HttpStatus.CREATED);
@@ -88,9 +85,8 @@ public class ProjectController {
             @ApiResponse(responseCode = "204", description = "Informations de projet mises à jour"),
             @ApiResponse(responseCode = "404", description = "Projet inexistant, vérifiez l'identifiant du projet")
     })
-    public ResponseEntity updateProject(@PathVariable("projectId") UUID projectId, @RequestBody ProjectRequestDTO projectUpToDate, @AuthenticationPrincipal UserDetails userDetails){
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
-        projectService.updateProjectById(projectId, projectUpToDate, currentUser);
+    public ResponseEntity updateProject(@PathVariable("projectId") UUID projectId, @RequestBody ProjectRequestDTO projectUpToDate){
+        projectService.updateProjectById(projectId, projectUpToDate);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 
@@ -129,12 +125,9 @@ public class ProjectController {
             @ApiResponse(responseCode = "500", description = "Imposiible de supprimer la tâche car aucun projet n'a été trouvé")
     })
     public ResponseEntity<ProjectResponseDTO> removeTasks(@PathVariable("projectId")UUID projectId,
-                                                       String taskTitle,
-                                                       @AuthenticationPrincipal UserDetails userDetails){
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
+                                                       String taskTitle){
 
-        return ResponseEntity.ok(projectService.removeTask(projectId, taskTitle, currentUser));
+        return ResponseEntity.ok(projectService.removeTask(projectId, taskTitle));
     }
 
     @GetMapping(PROJECT_PATH_ID + "/tasks")
@@ -163,10 +156,8 @@ public class ProjectController {
                                                          @AuthenticationPrincipal UserDetails userDetails,
                                                          ProjectRole projectRole) {
 
-        String cleanedEmail = memberEmail.replaceAll("\"", "").trim();
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow(()-> new NotFoundException("Utilisateur inexistant"));
-        return ResponseEntity.ok(projectService.addMembers(projectId, cleanedEmail, currentUser, projectRole));
+
+        return ResponseEntity.ok(projectService.addMembers(projectId, memberEmail, userDetails, projectRole));
     }
     @DeleteMapping(PROJECT_PATH_ID + "/members")
     @PreAuthorize("@projectSecurityServiceJPA.hasProjectRole(#projectId, 'MANAGER')  || hasRole('ADMIN')")

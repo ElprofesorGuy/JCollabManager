@@ -5,8 +5,10 @@ import com.elprofesor.collaborationtool.server.entities.*;
 import com.elprofesor.collaborationtool.server.mapper.*;
 import com.elprofesor.collaborationtool.server.models.*;
 import com.elprofesor.collaborationtool.server.repositories.*;
+import com.elprofesor.collaborationtool.server.security.CustomUserServiceDetails;
 import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -31,6 +33,8 @@ public class ProjectServiceJPA implements ProjectService {
     private final WorkflowStatusMapper mapper;
     private final ProjectMembershipRepository projectMembershipRepository;
     private final ProjectMemberMapper projectMemberMapper;
+    private final CustomUserServiceDetails customUserDetails;
+    private final NotificationService notificationService;
 
     @Override
     public List<ProjectResponseDTO> listProjects() {
@@ -41,7 +45,8 @@ public class ProjectServiceJPA implements ProjectService {
     }
 
     @Override
-    public List<ProjectResponseDTO> listMyProjects(Users currentUser) {
+    public List<ProjectResponseDTO> listMyProjects(UserDetails userDetails) {
+        Users currentUser = customUserDetails.getCurrentUser(userDetails);
         List<ProjectMembership> projectMemberships = projectMembershipRepository.findByUser(currentUser);
         return projectMemberships
                 .stream()
@@ -57,7 +62,7 @@ public class ProjectServiceJPA implements ProjectService {
     }
 
     @Override
-    public ProjectResponseDTO saveNewProject(ProjectRequestDTO projectRequestDTO, Users currentUser) {
+    public ProjectResponseDTO saveNewProject(ProjectRequestDTO projectRequestDTO) {
         Project projectToSave = projectMapper.projectRequestDtoToProject(projectRequestDTO);
         WorkflowStatus defaultWorkflowStauts1 = mapper.workflowStatusRequestDtoToWorkflowStatus(
                         WorkflowStatusRequestDTO.builder()
@@ -82,33 +87,22 @@ public class ProjectServiceJPA implements ProjectService {
                 .build());
         defaultWorfflowStatus3.setProject(projectToSave);
         ProjectResponseDTO responseDTO = projectMapper.projectToProjectResponseDto(projectRepository.save(projectToSave));
-        if(responseDTO.equals(null)){
-            System.out.println("System error");
-        }else{
-            System.out.println("Elément enregistré avec succès");
-        }
-        Optional<Users> manager = userRepository.findByEmail(projectRequestDTO.getManagerEmail());
-        //System.out.println("Nom de l'utilisateur trouvé : " + manager.getUsername());
-        if(manager.isEmpty()){
-            System.out.println("Retour sur la recherche de l'utilisateur : " + "utilisateur inexistant");
-        }else{
-            System.out.println("Manager retrouvé");
-            System.out.println("Email du manager : " + manager.get().getEmail());
-        }
+        Users manager = userRepository.findByEmail(projectRequestDTO.getManagerEmail()).orElseThrow(()->
+                new NotFoundException("Utilisateur inexistant"));
         ProjectMembership newMembership = ProjectMembership.builder()
-                .user(manager.get())
+                .user(manager)
                 .project(projectToSave)
                 .role(ProjectRole.MANAGER)
                 .joined_at(LocalDate.now())
                 .build();
         projectMembershipRepository.save(newMembership);
         workflowStatusRepository.saveAll(List.of(defaultWorkflowStauts1, defaultWorfflowStatus2,defaultWorfflowStatus3));
-        responseDTO.setManagerEmail(manager.get().getEmail());
+        responseDTO.setManagerEmail(manager.getEmail());
         return responseDTO;
     }
 
     @Override
-    public Optional<ProjectRequestDTO> updateProjectById(UUID id, ProjectRequestDTO projectRequestDTO, Users currentUser) {
+    public Optional<ProjectRequestDTO> updateProjectById(UUID id, ProjectRequestDTO projectRequestDTO) {
         AtomicReference<Optional<ProjectRequestDTO>> atomicReference = new AtomicReference<>();
         projectRepository.findById(id).ifPresentOrElse(foundProject -> {
             foundProject.setTitle(projectRequestDTO.getTitle());
@@ -149,12 +143,14 @@ public class ProjectServiceJPA implements ProjectService {
     }*/
 
     @Override
-    public ProjectResponseDTO addMembers(UUID projectId, String memberEmail, Users currentUser, ProjectRole projectRole) {
+    public ProjectResponseDTO addMembers(UUID projectId, String memberEmail, UserDetails userDetails, ProjectRole projectRole) {
+        Users currentUser = customUserDetails.getCurrentUser(userDetails);
          Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException(
                         "Projet introuvable : " + projectId
                 ));
-        Users newMember = userRepository.findByEmail(memberEmail)
+        String cleanedEmail = memberEmail.replaceAll("\"", "").trim();
+        Users newMember = userRepository.findByEmail(cleanedEmail)
                 .orElseThrow(() -> new NotFoundException("Utilisateur avec cet email introuvable : " + memberEmail));
 
         ProjectMembership newMembership = ProjectMembership.builder()
@@ -205,7 +201,7 @@ public class ProjectServiceJPA implements ProjectService {
     }
 
     @Override
-    public ProjectResponseDTO removeTask(UUID projectId, String taskTitle, Users currentUser) {
+    public ProjectResponseDTO removeTask(UUID projectId, String taskTitle) {
         Task taskToDelete = taskRepository.findByTitleContainingIgnoreCase(taskTitle).orElseThrow( () -> new NotFoundException("Tâche inexistante"));
         Project project = projectRepository.findById(projectId).orElseThrow(() -> new NotFoundException("Projet inexistant"));
 
