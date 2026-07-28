@@ -25,5 +25,6 @@ public interface TaskMapper {
     @Mapping(source = "project.title", target = "projectName")
     @Mapping(source = "parentTask.title", target = "parentTaskName")
     @Mapping(source = "status.name", target = "workflowStatus")
+    @Mapping(source = "status.completed", target = "isCompleted")
     TaskResponseDTO taskToTaskResponseDto(Task task);
 }

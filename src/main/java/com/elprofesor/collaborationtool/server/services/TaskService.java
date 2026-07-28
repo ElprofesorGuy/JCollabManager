@@ -4,6 +4,8 @@ import com.elprofesor.collaborationtool.server.entities.Task;
 import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
 import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
 import org.springframework.data.domain.Page;
+
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,4 +20,6 @@ public interface TaskService {
     TaskResponseDTO uploadAttachment(UUID taskId, MultipartFile file);
     TaskResponseDTO removeAttachment(UUID taskId);
     boolean isPredecessorsAllCompleted(Task task);
+    List<TaskResponseDTO> listofUnachievedTask();
+    List<TaskResponseDTO> listofUnstartedTask();
 }
