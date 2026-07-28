@@ -60,12 +60,37 @@ public class WorkflowStatusJPA implements WorkflowStatusService{
     }
 
     @Override
-    public boolean deleteStatus(UUID workflowStatusid){
-        if(workflowStatusRepository.existsById(workflowStatusid)){
-            workflowStatusRepository.deleteById(workflowStatusid);
-            return true;
+    public void deleteStatus(UUID workflowStatusid) {
+        // Fetch the status before deleting it
+        WorkflowStatus status = workflowStatusRepository.findById(workflowStatusid)
+                .orElseThrow(()-> new NotFoundException("Status inexistant"));
+        
+        UUID projectId = status.getProject().getId();
+        boolean wasCompleted = status.getCompleted();
+        int deletedOrderIndex = status.getOrderIndex();
+
+        workflowStatusRepository.deleteById(workflowStatusid);
+
+        // Fetch remaining statuses for this specific project, ordered by index
+        List<WorkflowStatus> remainingStatuses = workflowStatusRepository.findByProjectIdOrderByOrderIndexAsc(projectId);
+        
+        if (remainingStatuses.isEmpty()) {
+            return;
         }
 
-        return false;
+        if (wasCompleted) {
+            // Transfer completed flag to the new last status
+            WorkflowStatus lastStatus = remainingStatuses.get(remainingStatuses.size() - 1);
+            lastStatus.setCompleted(true);
+            workflowStatusRepository.save(lastStatus);
+        } else {
+            // Decrement order index for statuses that were after the deleted one
+            remainingStatuses.stream()
+                    .filter(s -> s.getOrderIndex() > deletedOrderIndex)
+                    .forEach(s -> {
+                        s.setOrderIndex(s.getOrderIndex() - 1);
+                        workflowStatusRepository.save(s);
+                    });
+        }
     }
 }
