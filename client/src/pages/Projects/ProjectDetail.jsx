@@ -53,6 +53,16 @@ const isSubmissionLate = (subDate, echDate) => {
   return s > e;
 };
 
+const isOverdue = (dateEcheance, isCompleted) => {
+  if (!dateEcheance || isCompleted) return false;
+  const due = parseDateToObj(dateEcheance);
+  if (!due) return false;
+  const today = new Date();
+  due.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return today > due;
+};
+
 const projectSchema = z.object({
   title: z.string().min(3, "Titre requis").optional(),
   description: z.string().min(5, "Description requise").optional(),
@@ -88,7 +98,7 @@ const PROJECT_ROLES = ["MANAGER", "CONTRIBUTOR", "REVIEWER", "VIEWER"];
 
 const getColorForIndex = (i) => COLUMN_COLORS[i % COLUMN_COLORS.length];
 
-const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDeleteTask, onRenameStatus, onDeleteStatus, canEdit, canDeleteTask }) => {
+const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDeleteTask, onRenameStatus, onDeleteStatus, onDropTask, canEdit, canDeleteTask }) => {
   const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState(status.name);
   const inputRef = useRef(null);
@@ -115,7 +125,15 @@ const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDele
   };
 
   return (
-    <div className="bg-[#121824]/30 border border-[#1f293d] rounded-2xl p-4 flex flex-col h-[600px] shadow-lg w-full">
+    <div className="bg-[#121824]/30 border border-[#1f293d] rounded-2xl p-4 flex flex-col h-[600px] shadow-lg w-full"
+         onDragOver={(e) => e.preventDefault()}
+         onDrop={(e) => {
+           const taskId = e.dataTransfer.getData("taskId");
+           if (taskId) {
+             e.stopPropagation();
+             onDropTask(taskId, status);
+           }
+         }}>
       <h3 className="font-bold text-slate-300 mb-4 flex items-center justify-between gap-2">
         {editing ? (
           <div className="flex items-center gap-1 flex-1">
@@ -150,6 +168,11 @@ const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDele
         ) : (
           tasks.map(task => (
             <div onClick={() => onTaskClick(task)} key={task.id}
+              draggable={true}
+              onDragStart={(e) => { 
+                e.stopPropagation(); 
+                e.dataTransfer.setData("taskId", task.id); 
+              }}
               className={`bg-[#121824]/50 p-4 rounded-xl border border-[#1f293d] hover:border-slate-600 transition-all cursor-pointer border-l-4 ${colorConfig.border} hover:shadow-lg hover:-translate-y-0.5 group/task relative`}>
               <div className="flex justify-between items-start">
                 <div>
@@ -174,10 +197,29 @@ const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDele
                     <span>{task.assign_to}</span>
                   </div>
                 )}
-                <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${task.dateEcheance ? "text-slate-400 bg-slate-800/80 border border-slate-700" : "text-slate-500 bg-slate-900/50 italic border border-slate-800"}`}>
-                  <Calendar className="w-3 h-3" />
-                  <span>{task.dateEcheance ? formatDate(task.dateEcheance) : "Pas d echeance"}</span>
-                </div>
+                {status.completed && task.submissionDate ? (
+                  <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md text-emerald-400 bg-emerald-900/20 border border-emerald-500/30">
+                    <Calendar className="w-3 h-3" />
+                    <span>Soumis le: {formatDate(task.submissionDate)}</span>
+                  </div>
+                ) : (
+                  <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    isOverdue(task.dateEcheance, status.completed)
+                      ? "text-rose-300 bg-rose-900/30 border border-rose-500/40"
+                      : task.dateEcheance
+                        ? "text-slate-400 bg-slate-800/80 border border-slate-700"
+                        : "text-slate-500 bg-slate-900/50 italic border border-slate-800"
+                  }`}>
+                    <Calendar className="w-3 h-3" />
+                    <span>{task.dateEcheance ? formatDate(task.dateEcheance) : "Pas d echeance"}</span>
+                  </div>
+                )}
+                {isOverdue(task.dateEcheance, status.completed) && !task.submissionDate && (
+                  <div className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md text-rose-300 bg-rose-900/40 border border-rose-500/50 animate-pulse">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>En retard</span>
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -216,6 +258,8 @@ const ProjectDetail = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isDeleteProjectModalOpen, setIsDeleteProjectModalOpen] = useState(false);
+  const [isDeleteStatusModalOpen, setIsDeleteStatusModalOpen] = useState(false);
+  const [statusToDelete, setStatusToDelete] = useState(null);
   const [isNewStatusModalOpen, setIsNewStatusModalOpen] = useState(false);
   const [newStatusName, setNewStatusName] = useState("");
   const [statusError, setStatusError] = useState("");
@@ -289,7 +333,7 @@ const ProjectDetail = () => {
       setTaskError("");
       const payload = { projectName: project.title, title: data.title, description: data.description, workflowStatus: data.workflowStatus || statuses[0]?.name || "", taskType: data.taskType || "TASK", parentTaskName: data.parentTaskName || "", assign_to: data.assign_to || "", dateDebut: data.dateDebut || null, dateEcheance: data.dateEcheance || null };
       if (selectedTask) {
-        await api.put(`/v1/task/${selectedTask.id}`, payload);
+        await api.put(`/v1/task/${selectedTask.id}/${project.id}`, payload);
         const currentPredecessors = dependencies.filter(d => d.successorId === selectedTask.id).map(d => d.predecessorId);
         for (let dep of dependencies.filter(d => d.successorId === selectedTask.id && !selectedPredecessors.includes(d.predecessorId))) {
           try { await api.delete(`/v1/tasks/dependencies/${dep.dependencyId}`); } catch (e) { }
@@ -365,12 +409,21 @@ const ProjectDetail = () => {
     } catch (err) { console.error("Erreur renommage statut", err); }
   };
 
-  const onDeleteStatus = async (statusId) => {
-    if (!window.confirm("Voulez-vous vraiment supprimer ce statut ? Toutes les tâches associées pourraient être supprimées ou orphelines.")) return;
+  const requestDeleteStatus = (statusId) => {
+    setStatusToDelete(statusId);
+    setIsDeleteStatusModalOpen(true);
+  };
+
+  const confirmDeleteStatus = async () => {
+    if (!statusToDelete) return;
     try {
-      await api.delete(`/v1/projects/${id}/statuses/${statusId}`);
+      await api.delete(`/v1/projects/${id}/statuses/${statusToDelete}`);
       fetchProjectData();
     } catch (err) { console.error("Erreur suppression statut", err); alert(err.response?.data?.message || "Erreur lors de la suppression."); }
+    finally {
+      setIsDeleteStatusModalOpen(false);
+      setStatusToDelete(null);
+    }
   };
 
   const onAddStatus = async (e) => {
@@ -412,7 +465,7 @@ const ProjectDetail = () => {
     const draggedItem = newStatuses[draggedStatusIndex];
     newStatuses.splice(draggedStatusIndex, 1);
     newStatuses.splice(targetIndex, 0, draggedItem);
-    
+
     // The last column always becomes completed = true, all others completed = false
     const updatedStatuses = newStatuses.map((s, idx) => ({
       ...s,
@@ -420,16 +473,40 @@ const ProjectDetail = () => {
       completed: idx === newStatuses.length - 1
     }));
     setStatuses(updatedStatuses);
-    
+
     try {
-       await Promise.all(updatedStatuses.map(s => 
-          api.put(`/v1/projects/${id}/statuses/${s.id}`, { name: s.name, orderIndex: s.orderIndex, completed: s.completed })
-       ));
+      await Promise.all(updatedStatuses.map(s =>
+        api.put(`/v1/projects/${id}/statuses/${s.id}`, { name: s.name, orderIndex: s.orderIndex, completed: s.completed })
+      ));
     } catch (error) {
-       console.error("Erreur lors de la mise à jour de l'ordre", error);
-       fetchProjectData();
+      console.error("Erreur lors de la mise à jour de l'ordre", error);
+      fetchProjectData();
     }
     setDraggedStatusIndex(null);
+  };
+
+  const onDropTask = async (taskId, targetStatus) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || task.workflowStatus === targetStatus.name) return;
+    
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, workflowStatus: targetStatus.name } : t));
+    
+    try {
+      const payload = {
+        title: task.title,
+        description: task.description,
+        assign_to: task.assign_to,
+        dateEcheance: task.dateEcheance,
+        dateDebut: task.dateDebut,
+        taskType: task.taskType,
+        workflowStatus: targetStatus.name
+      };
+      await api.put(`/v1/task/${taskId}/${project.id}`, payload);
+    } catch (err) {
+      console.error("Erreur mise à jour tâche", err);
+      fetchProjectData(); // Revert on error
+    }
   };
 
   const onEditProjectSubmit = async (data) => {
@@ -462,7 +539,7 @@ const ProjectDetail = () => {
     doc.save(`${project.title.replace(/\s+/g, "_")}_rapport.pdf`);
   };
 
-  useEffect(() => { fetchProjectData(); }, [id]);
+  useEffect(() => { fetchProjectData(); fetchMembers(); }, [id]);
 
   if (loading) return (<div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary-600" /></div>);
   if (error || !project) return (<div className="p-4 bg-red-50 text-red-600 rounded-lg text-center"><p>{error || "Projet introuvable"}</p><Link to="/projects" className="text-primary-600 underline mt-2 inline-block">Retour aux projets</Link></div>);
@@ -528,7 +605,7 @@ const ProjectDetail = () => {
                     onDrop={(e) => onDrop(e, index)}
                     className={`transition-opacity ${draggedStatusIndex === index ? "opacity-40 cursor-grabbing" : "opacity-100 cursor-grab"} group flex-1 min-w-[280px] max-w-[400px]`}
                   >
-                    <KanbanColumn status={status} colorConfig={color} tasks={columnTasks} isOwner={isOwner} canEdit={canEdit} canDeleteTask={canDeleteTask} onTaskClick={openTaskModal} onDeleteTask={onDeleteTask} onRenameStatus={onRenameStatus} onDeleteStatus={onDeleteStatus} />
+                    <KanbanColumn status={status} colorConfig={color} tasks={columnTasks} isOwner={isOwner} canEdit={canEdit} canDeleteTask={canDeleteTask} onTaskClick={openTaskModal} onDeleteTask={onDeleteTask} onRenameStatus={onRenameStatus} onDeleteStatus={requestDeleteStatus} onDropTask={onDropTask} />
                   </div>
                 );
               })}
@@ -750,6 +827,72 @@ const ProjectDetail = () => {
               <div className="flex justify-end gap-3 pt-3 border-t border-[#1f293d]/50">
                 <button type="button" onClick={() => setIsDeleteProjectModalOpen(false)} className="px-4 py-2 text-slate-400 font-semibold hover:bg-slate-800/50 border border-[#1f293d] rounded-xl transition-colors text-sm">Annuler</button>
                 <button type="button" onClick={onDeleteProject} className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition-colors flex items-center gap-2 text-sm"><Trash2 className="w-4 h-4" /> Supprimer definitivement</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteStatusModalOpen && (
+        <div
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setIsDeleteStatusModalOpen(false)}
+        >
+          <div
+            className="bg-[#0f172a] border border-rose-500/30 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-rose-500/20 flex justify-between items-center bg-gradient-to-r from-rose-950/40 to-[#0f172a]">
+              <h2 className="text-base font-bold text-rose-400 flex items-center gap-2.5">
+                <div className="p-1.5 bg-rose-500/15 rounded-lg">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                Supprimer le statut
+              </h2>
+              <button
+                onClick={() => setIsDeleteStatusModalOpen(false)}
+                className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                title="Fermer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-5">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 shrink-0 w-8 h-8 rounded-full bg-rose-500/15 flex items-center justify-center">
+                  <Trash2 className="w-4 h-4 text-rose-400" />
+                </div>
+                <div>
+                  <p className="text-slate-200 font-semibold text-sm mb-1">Confirmer la suppression</p>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    Voulez-vous vraiment supprimer ce statut ? Les tâches associées pourraient être supprimées ou rendues orphelines.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/20 text-rose-300 text-xs flex items-start gap-2">
+                <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>Cette action est <strong>irréversible</strong> et ne peut pas être annulée.</span>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteStatusModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 text-slate-300 font-semibold bg-[#121824] hover:bg-slate-800/70 border border-[#1f293d] hover:border-slate-600 rounded-xl transition-all text-sm"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteStatus}
+                  className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-rose-900/30"
+                >
+                  <Trash2 className="w-4 h-4" /> Supprimer
+                </button>
               </div>
             </div>
           </div>

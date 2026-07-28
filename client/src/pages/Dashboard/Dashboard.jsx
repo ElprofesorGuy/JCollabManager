@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layers, CheckCircle, Clock, Loader2, ListTodo, AlertTriangle, Users, Calendar, TrendingUp, BarChart3, ShieldAlert } from 'lucide-react';
+import { Layers, CheckCircle, Clock, Loader2, ListTodo, AlertTriangle, Users, Calendar, TrendingUp, BarChart3, ShieldAlert, Trash2, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
 import api from '../../api/axiosConfig';
@@ -45,31 +45,35 @@ const getStandardStatus = (task) => {
       return "EN RETARD";
     }
   }
-  if (/termin|done|end|livr/i.test(task.workflowStatus || "")) {
-    return "TERMINÉ";
-  }
-  if (/faire|todo|plan|backlog/i.test(task.workflowStatus || "")) {
-    return "À FAIRE";
-  }
-  return "EN COURS";
+  return task.workflowStatus || "Non defini";
+};
+
+const isOverdue = (dateEcheance, isCompleted) => {
+  if (!dateEcheance || isCompleted) return false;
+  const due = parseTaskDate(dateEcheance);
+  if (!due) return false;
+  const today = new Date();
+  due.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return today > due;
 };
 
 const COLUMN_COLORS = ['#64748b', '#06b6d4', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6'];
 
+
 const getDynamicStats = (tasksList) => {
-  const stats = {
-    "À FAIRE": { name: "À FAIRE", value: 0, color: "#64748b" },
-    "EN COURS": { name: "EN COURS", value: 0, color: "#06b6d4" },
-    "TERMINÉ": { name: "TERMINÉ", value: 0, color: "#10b981" },
-    "EN RETARD": { name: "EN RETARD", value: 0, color: "#f43f5e" }
-  };
+  const stats = {};
   
   tasksList.forEach(t => {
     const std = getStandardStatus(t);
+    if (!stats[std]) {
+      const colorIndex = Object.keys(stats).length % COLUMN_COLORS.length;
+      stats[std] = { name: std, value: 0, color: COLUMN_COLORS[colorIndex] };
+    }
     stats[std].value += 1;
   });
   
-  return Object.values(stats).filter(item => item.value > 0);
+  return Object.values(stats).sort((a, b) => b.value - a.value);
 };
 
 const getDeadlineBadge = (parsedDate) => {
@@ -100,6 +104,8 @@ const Dashboard = () => {
   const [dashboardTab, setDashboardTab] = useState('personal'); // 'personal', 'team', or 'admin'
   const [usersList, setUsersList] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [inProgressTasks, setInProgressTasks] = useState([]);
+  const [notStartedTasks, setNotStartedTasks] = useState([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -116,8 +122,14 @@ const Dashboard = () => {
         
         if (user?.role === 'ADMIN') {
           setLoadingUsers(true);
-          const usersRes = await api.get('/v1/user');
+          const [usersRes, inProgressRes, notStartedRes] = await Promise.all([
+            api.get('/v1/user'),
+            api.get('/v1/task/unachievedtask'),
+            api.get('/v1/task/unstartedtask'),
+          ]);
           setUsersList(usersRes.data || []);
+          setInProgressTasks(inProgressRes.data || []);
+          setNotStartedTasks(notStartedRes.data || []);
           setLoadingUsers(false);
         }
       } catch (error) {
@@ -144,32 +156,34 @@ const Dashboard = () => {
     }
   };
 
-  // Global counts
-  const taskStatsData = getDynamicStats(data.tasks);
+  // Global counts — use admin-specific endpoints when available, otherwise filter client-side
+  const isAdmin = user?.role === 'ADMIN';
   const activeProjectsCount = data.projects.length;
-  const todoTasksCount = data.tasks.filter(t => getStandardStatus(t) === "À FAIRE").length;
-  const inProgressTasksCount = data.tasks.filter(t => getStandardStatus(t) === "EN COURS").length;
-  const doneTasksCount = data.tasks.filter(t => getStandardStatus(t) === "TERMINÉ").length;
-  const overdueTasksCount = data.tasks.filter(t => getStandardStatus(t) === "EN RETARD").length;
+  const overdueTasksCount = data.tasks.filter(t => isOverdue(t.dateEcheance, t.isCompleted) && !t.submissionDate).length;
+  const completedTasksCount = data.tasks.filter(t => t.isCompleted).length;
+  const inProgressCount = isAdmin ? inProgressTasks.length : data.tasks.filter(t => !t.isCompleted && !isOverdue(t.dateEcheance, t.isCompleted)).length;
+  const notStartedCount = isAdmin ? notStartedTasks.length : data.tasks.filter(t => !t.isCompleted).length;
 
   // Current user's specific tasks and counts
   const allMyTasks = data.tasks.filter(t => (t.assign_to === user?.email || t.assign_to === user?.username));
   const myTotalCount = allMyTasks.length;
   const myTaskStatsData = getDynamicStats(allMyTasks);
-  const myTodoCount = allMyTasks.filter(t => getStandardStatus(t) === "À FAIRE").length;
-  const myInProgressCount = allMyTasks.filter(t => getStandardStatus(t) === "EN COURS").length;
-  const myDoneCount = allMyTasks.filter(t => getStandardStatus(t) === "TERMINÉ").length;
-  const myOverdueCount = allMyTasks.filter(t => getStandardStatus(t) === "EN RETARD").length;
+  const myOverdueCount = allMyTasks.filter(t => isOverdue(t.dateEcheance, t.isCompleted) && !t.submissionDate).length;
+  const myCompletedCount = allMyTasks.filter(t => t.isCompleted).length;
+  const myInProgressCount = allMyTasks.filter(t => !t.isCompleted && !isOverdue(t.dateEcheance, t.isCompleted)).length;
+  const myNotStartedCount = isAdmin
+    ? notStartedTasks.filter(t => t.assign_to === user?.email || t.assign_to === user?.username).length
+    : allMyTasks.filter(t => !t.isCompleted).length;
   
   // Get up to 3 most recent projects
   const recentProjects = data.projects.slice(0, 3);
 
   // Filter tasks assigned to the current user and not completed (heuristically filtered)
-  const myTasks = allMyTasks.filter(t => !/termin|done|end/i.test(t.workflowStatus || "")).slice(0, 6);
+  const myTasks = allMyTasks.filter(t => !t.isCompleted).slice(0, 6);
 
   // Urgent tasks across all projects based on user's business logic (Point 6)
   const urgentTasks = data.tasks
-    .filter(t => !/termin|done|end/i.test(t.workflowStatus || "") && t.dateEcheance)
+    .filter(t => !t.isCompleted && t.dateEcheance)
     .map(t => {
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -198,7 +212,7 @@ const Dashboard = () => {
   const projectsProgress = data.projects.map(project => {
     const projectTasks = data.tasks.filter(t => t.projectName === project.title);
     const total = projectTasks.length;
-    const completed = projectTasks.filter(t => /termin|done|end/i.test(t.workflowStatus || "")).length;
+    const completed = projectTasks.filter(t => t.isCompleted).length;
     const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
     return {
       ...project,
@@ -276,33 +290,59 @@ const Dashboard = () => {
       {dashboardTab === 'personal' && (
         <div className="space-y-8">
           {/* Cartes KPI Personnel */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-primary-500">
-              <div className="p-3 bg-primary-500/10 text-primary-400 rounded-xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+
+            {/* Non commencées */}
+            <Link to="/tasks/not-started" className="glass-card glass-card-hover p-5 flex items-center gap-4 border-l-4 border-l-slate-500 group cursor-pointer">
+              <div className="p-3 bg-slate-500/10 text-slate-400 rounded-xl group-hover:bg-slate-500/20 transition-colors">
                 <ListTodo className="w-6 h-6" />
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mes Tâches</p>
-                <p className="text-2xl font-bold text-white mt-1">{myTotalCount}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Non commencées</p>
+                <p className="text-2xl font-bold text-white mt-0.5">{myNotStartedCount}</p>
               </div>
-            </div>
+              <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 group-hover:translate-x-1 transition-all shrink-0" />
+            </Link>
 
-            {myTaskStatsData.slice(0, 4).map((stat, i) => {
-              const icons = [ListTodo, Clock, CheckCircle, AlertTriangle];
-              const borders = ['border-l-slate-400', 'border-l-cyan-500', 'border-l-emerald-500', 'border-l-rose-500'];
-              const Icon = icons[i % icons.length];
-              return (
-                <div key={stat.name} className={`glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 ${borders[i % borders.length]}`}>
-                  <div className="p-3 rounded-xl" style={{ backgroundColor: stat.color + '22', color: stat.color }}>
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{stat.name}</p>
-                    <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
-                  </div>
-                </div>
-              );
-            })}
+            {/* En cours */}
+            <Link to="/tasks/in-progress" className="glass-card glass-card-hover p-5 flex items-center gap-4 border-l-4 border-l-cyan-500 group cursor-pointer">
+              <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl group-hover:bg-cyan-500/20 transition-colors">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">En cours</p>
+                <p className="text-2xl font-bold text-white mt-0.5">{myInProgressCount}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all shrink-0" />
+            </Link>
+
+            {/* Terminées */}
+            <Link to="/tasks/completed" className="glass-card glass-card-hover p-5 flex items-center gap-4 border-l-4 border-l-emerald-500 group cursor-pointer">
+              <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl group-hover:bg-emerald-500/20 transition-colors">
+                <CheckCircle className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Terminées</p>
+                <p className="text-2xl font-bold text-white mt-0.5">{myCompletedCount}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all shrink-0" />
+            </Link>
+
+            {/* En retard */}
+            <Link to="/tasks/overdue" className="glass-card glass-card-hover p-5 flex items-center gap-4 border-l-4 border-l-rose-500 group cursor-pointer">
+              <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl group-hover:bg-rose-500/20 transition-colors">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">En retard</p>
+                <p className="text-2xl font-bold text-white mt-0.5">{myOverdueCount}</p>
+              </div>
+              {myOverdueCount > 0 && (
+                <span className="shrink-0 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+              )}
+              <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-rose-400 group-hover:translate-x-1 transition-all shrink-0" />
+            </Link>
+
           </div>
 
           {/* Grille Principale Personnel */}
@@ -338,8 +378,6 @@ const Dashboard = () => {
                             <h3 className="font-bold text-slate-200 text-sm leading-snug truncate pr-2" title={task.title}>{task.title}</h3>
                             <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider shrink-0 ${
                               getStandardStatus(task) === 'EN RETARD' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
-                              getStandardStatus(task) === 'À FAIRE' ? 'bg-slate-800 text-slate-400 border border-slate-700' :
-                              getStandardStatus(task) === 'TERMINÉ' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
                               'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                             }`}>
                               {getStandardStatus(task)}
@@ -453,33 +491,59 @@ const Dashboard = () => {
       {dashboardTab === 'team' && (
         <div className="space-y-8">
           {/* Cartes KPI Globales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-indigo-500">
-              <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
-                <Layers className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Projets Actifs</p>
-                <p className="text-2xl font-bold text-white mt-1">{activeProjectsCount}</p>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 
-            {taskStatsData.slice(0, 4).map((stat, i) => {
-              const icons = [ListTodo, Clock, CheckCircle, AlertTriangle];
-              const borders = ['border-l-slate-400', 'border-l-cyan-500', 'border-l-emerald-500', 'border-l-rose-500'];
-              const Icon = icons[i % icons.length];
-              return (
-                <div key={stat.name} className={`glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 ${borders[i % borders.length]}`}>
-                  <div className="p-3 rounded-xl" style={{ backgroundColor: stat.color + '22', color: stat.color }}>
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{stat.name}</p>
-                    <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
-                  </div>
-                </div>
-              );
-            })}
+            {/* Non commencées */}
+            <Link to="/tasks/not-started" className="glass-card glass-card-hover p-5 flex items-center gap-4 border-l-4 border-l-slate-500 group cursor-pointer">
+              <div className="p-3 bg-slate-500/10 text-slate-400 rounded-xl group-hover:bg-slate-500/20 transition-colors">
+                <ListTodo className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Non commencées</p>
+                <p className="text-2xl font-bold text-white mt-0.5">{notStartedCount}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 group-hover:translate-x-1 transition-all shrink-0" />
+            </Link>
+
+            {/* En cours */}
+            <Link to="/tasks/in-progress" className="glass-card glass-card-hover p-5 flex items-center gap-4 border-l-4 border-l-cyan-500 group cursor-pointer">
+              <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl group-hover:bg-cyan-500/20 transition-colors">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">En cours</p>
+                <p className="text-2xl font-bold text-white mt-0.5">{inProgressCount}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all shrink-0" />
+            </Link>
+
+            {/* Terminées */}
+            <Link to="/tasks/completed" className="glass-card glass-card-hover p-5 flex items-center gap-4 border-l-4 border-l-emerald-500 group cursor-pointer">
+              <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl group-hover:bg-emerald-500/20 transition-colors">
+                <CheckCircle className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Terminées</p>
+                <p className="text-2xl font-bold text-white mt-0.5">{completedTasksCount}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all shrink-0" />
+            </Link>
+
+            {/* En retard */}
+            <Link to="/tasks/overdue" className="glass-card glass-card-hover p-5 flex items-center gap-4 border-l-4 border-l-rose-500 group cursor-pointer">
+              <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl group-hover:bg-rose-500/20 transition-colors">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">En retard</p>
+                <p className="text-2xl font-bold text-white mt-0.5">{overdueTasksCount}</p>
+              </div>
+              {overdueTasksCount > 0 && (
+                <span className="shrink-0 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+              )}
+              <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-rose-400 group-hover:translate-x-1 transition-all shrink-0" />
+            </Link>
+
           </div>
 
           {/* Deux colonnes d'analyses */}
@@ -562,10 +626,15 @@ const Dashboard = () => {
                           itemStyle={{ fontSize: '11px' }}
                         />
                         <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                        <Bar dataKey="À FAIRE" stackId="a" fill="#64748b" radius={[0, 0, 0, 0]} maxBarSize={30} />
-                        <Bar dataKey="EN COURS" stackId="a" fill="#06b6d4" radius={[0, 0, 0, 0]} maxBarSize={30} />
-                        <Bar dataKey="TERMINÉ" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} maxBarSize={30} />
-                        <Bar dataKey="EN RETARD" stackId="a" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                        {(() => {
+                          const uniqueStatuses = [...new Set(data.tasks.map(t => t.workflowStatus || "Non defini"))];
+                          return uniqueStatuses.map((status, index) => {
+                            const isLast = index === uniqueStatuses.length - 1;
+                            return (
+                              <Bar key={status} dataKey={status} stackId="a" fill={COLUMN_COLORS[index % COLUMN_COLORS.length]} radius={isLast ? [4, 4, 0, 0] : [0, 0, 0, 0]} maxBarSize={30} />
+                            );
+                          });
+                        })()}
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -697,11 +766,13 @@ const Dashboard = () => {
 
             <div className="glass-card glass-card-hover p-6 flex items-center gap-4 border-l-4 border-l-purple-500">
               <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl">
-                <ShieldAlert className="w-6 h-6" />
+                <CheckCircle className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Comptes Admin</p>
-                <p className="text-2xl font-bold text-white mt-1">{usersList.filter(u => u.role === 'ADMIN').length}</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Taux de Complétion</p>
+                <p className="text-2xl font-bold text-white mt-1">
+                  {data.tasks.length > 0 ? Math.round((data.tasks.filter(t => t.isCompleted).length / data.tasks.length) * 100) : 0}%
+                </p>
               </div>
             </div>
           </div>

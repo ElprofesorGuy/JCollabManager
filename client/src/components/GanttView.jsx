@@ -258,7 +258,7 @@ const GanttView = ({ tasks, dependencies, projectId, onTaskClick, refreshData })
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative group/gantt">
       {/* Container scrollable */}
       <div className="overflow-x-auto custom-scrollbar pb-6 relative">
-        <div ref={containerRef} className="min-w-max p-6">
+        <div ref={containerRef} className="min-w-max p-6 relative">
           {/* Timeline Header */}
           <div className="relative flex items-center p-1 mb-4 sticky top-0 bg-white z-20 border-b border-slate-100 py-2">
             {/* Espaceur identique au titre des tâches */}
