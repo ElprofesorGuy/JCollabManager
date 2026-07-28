@@ -20,6 +20,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -105,7 +106,7 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Tâche inexistante, vérifiez l'identifiant de la tâche"),
             @ApiResponse(responseCode = "500", description = "Vous essayez sûrement de marquer manuellement une tâche comme OVERDUE")
     })
-    public ResponseEntity updateExistingTask(@PathVariable UUID taskId, @RequestBody TaskRequestDTO taskRequestDTO){
+    public ResponseEntity updateExistingTask(@PathVariable("taskId") UUID taskId, @PathVariable("projectId") UUID projectId, @RequestBody TaskRequestDTO taskRequestDTO){
         if(taskService.updateTask(taskId, taskRequestDTO).isEmpty()){
             throw new NotFoundException();
         }
@@ -131,5 +132,18 @@ public class TaskController {
 
         TaskResponseDTO updatedTask = taskService.removeAttachment(taskId);
         return ResponseEntity.ok(updatedTask);
+    }
+
+    @GetMapping(TASK_PATH + "/unachievedtask")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<TaskResponseDTO> displayUnachievedTask(){
+        return taskService.listofUnachievedTask();
+    }
+
+
+    @GetMapping(TASK_PATH + "/unstartedtask")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<TaskResponseDTO> displayUnstartedTask(){
+        return taskService.listofUnstartedTask();
     }
 }

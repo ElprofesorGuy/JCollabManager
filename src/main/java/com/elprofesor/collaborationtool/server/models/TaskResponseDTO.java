@@ -25,4 +25,5 @@ public class TaskResponseDTO {
     private String taskType;
     private String parentTaskName;
     private String workflowStatus;
+    private Boolean isCompleted;
 }

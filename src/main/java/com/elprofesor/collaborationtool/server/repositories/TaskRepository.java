@@ -13,14 +13,15 @@ import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, UUID> {
     Optional<Task> findByTitleContainingIgnoreCase(String title);
-
-    //List<Task> findByDateEcheanceBeforeAndStatus_IsEndFalse(LocalDate date);
-    List<Task> findByStatus(WorkflowStatus taskStatus);
+    List<Task> findAllByStatus(WorkflowStatus taskStatus);
     List<Task> findByDateEcheanceBetweenAndStatus_CompletedFalse(LocalDate startDate, LocalDate deadline);
 
     Page<Task> findByTitleIsLikeIgnoreCase(String taskTitle, Pageable pageable);
 
-    Page<Task> findByStatus(WorkflowStatus status, Pageable pageable);
+    Page<Task> findAllByStatus(WorkflowStatus status, Pageable pageable);
 
     Page<Task> findByTitleIsLikeIgnoreCaseAndStatus(String taskTitle, WorkflowStatus status, Pageable pageable);
+
+    List<Task> findByStatusIn(List<WorkflowStatus> statuses);
+
 }

@@ -45,11 +45,8 @@ public class WorkflowStatusController {
     }
 
     @DeleteMapping("/api/v1/projects/{projectId}/statuses/{workflowStatusId}")
-    public ResponseEntity deleteWorkflowStatus(@PathVariable("workflowStatusId") UUID workflowStatusId){
-        if(!workflowStatusService.deleteStatus(workflowStatusId)){
-            throw new NotFoundException("Status de tâche inexistant");
-        }
-
+    public ResponseEntity deleteWorkflowStatus(@PathVariable("workflowStatusId") UUID workflowStatusId) {
+        workflowStatusService.deleteStatus(workflowStatusId);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 }

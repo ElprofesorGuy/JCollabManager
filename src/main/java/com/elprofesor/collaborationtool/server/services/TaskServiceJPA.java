@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -98,15 +99,16 @@ public class TaskServiceJPA implements TaskService {
     @Override
     public Optional<TaskRequestDTO> updateTask(UUID id, TaskRequestDTO taskRequestDTO) {
        Task tache = taskRepository.findById(id).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
-        WorkflowStatus workflowStatus = workflowStatusRepository.findByNameIgnoringCase(taskRequestDTO.getWorkflowStatus()).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
         Project projet = tache.getProject();
+       WorkflowStatus workflowStatus = workflowStatusRepository.findByNameIgnoringCaseAndProject(taskRequestDTO.getWorkflowStatus(), projet).orElseThrow(()
+               -> new NotFoundException("Statut inexistant"));
         if(workflowStatus.getProject().getId().equals(projet.getId())){
             AtomicReference<Optional<TaskRequestDTO>> atomicReference = new AtomicReference<>();
             taskRepository.findById(id).ifPresentOrElse(foundTask -> {
 
                 foundTask.setTitle(taskRequestDTO.getTitle());
 
-                if(tache.getStatus().getCompleted() && !workflowStatus.getCompleted()){
+                if(tache.getStatus().getCompleted()){
                     throw new IllegalArgumentException("Cette tâche est déjà marquée comme terminé, vous ne pouvez pas la modifier");
 
                 }else if(!tache.getStatus().getCompleted() && workflowStatus.getCompleted()){
@@ -118,6 +120,7 @@ public class TaskServiceJPA implements TaskService {
                     }
 
                 }
+                foundTask.setStatus(workflowStatus);
                 foundTask.setDescription(taskRequestDTO.getDescription());
                 if(taskRequestDTO.getDateEcheance() != null){
                     if(taskRequestDTO.getDateEcheance().isBefore(LocalDate.now()) && !taskRequestDTO.getDateEcheance().equals(tache.getDateEcheance())){
@@ -134,7 +137,6 @@ public class TaskServiceJPA implements TaskService {
                     if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssign_to());
                     foundTask.setAssign_to(assignee.orElse(null));
                     if (assignee.isPresent()) {
-                        //projet.addMember(assignee.get());
                         projectRepository.save(projet);
                     }
                 } else {
@@ -197,12 +199,29 @@ public class TaskServiceJPA implements TaskService {
         } else if (StringUtils.hasText(taskTitle)) {
             listTasks = taskRepository.findByTitleIsLikeIgnoreCase("%" + taskTitle + "%", pageRequest);
         } else if (workflowStatus != null) {
-            listTasks = taskRepository.findByStatus(workflowStatus, pageRequest);
+            listTasks = taskRepository.findAllByStatus(workflowStatus, pageRequest);
         } else {
             listTasks = taskRepository.findAll(pageRequest);
         }
 
         return listTasks.map(taskMapper::taskToTaskResponseDto);
+    }
+
+    @Override
+    public List<TaskResponseDTO> listofUnachievedTask(){
+        List<WorkflowStatus> unachiedevStatuses = workflowStatusRepository.findAllByOrderIndexNotAndCompletedFalse(0);
+        return taskRepository.findByStatusIn(unachiedevStatuses).stream()
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+
+    }
+
+    @Override
+    public List<TaskResponseDTO> listofUnstartedTask(){
+        List<WorkflowStatus> unstartedStatuses = workflowStatusRepository.findAllByOrderIndex(0);
+        return taskRepository.findByStatusIn(unstartedStatuses).stream()
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
     }
 
 
