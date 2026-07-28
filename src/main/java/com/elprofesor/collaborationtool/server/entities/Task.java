@@ -28,8 +28,8 @@ public class Task {
     @EqualsAndHashCode.Include
     private UUID id;
 
-    @Column(length = 50)
-    @Size(max = 50)
+    @Column(length = 150)
+    @Size(max = 150)
     private String title;
 
     @NotNull
