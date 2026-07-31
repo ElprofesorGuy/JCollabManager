@@ -81,12 +81,12 @@ public class TaskServiceJPA implements TaskService {
         Task taskTosave = taskMapper.taskRequestDtoToTask(taskRequestDTO);
         taskTosave.setDateDebut(taskRequestDTO.getDateDebut());
         taskTosave.setProject(projet);
-        if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {//Si la chaine assign_to n'est pas vide même après suppression des espaces
-            assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());//On récupère l'utilisateur à qui la tâche sera assignée par son email
-            taskTosave.setAssign_to(assignee.orElse(null));
+        if (taskRequestDTO.getAssignTo() != null && !taskRequestDTO.getAssignTo().trim().isEmpty()) {//Si la chaine assign_to n'est pas vide même après suppression des espaces
+            assignee = userRepository.findByEmail(taskRequestDTO.getAssignTo());//On récupère l'utilisateur à qui la tâche sera assignée par son email
+            taskTosave.setAssignTo(assignee.orElse(null));
 
         } else {
-            taskTosave.setAssign_to(null);
+            taskTosave.setAssignTo(null);
         }
         WorkflowStatus defaultStatus = workflowStatusRepository.findByProjectIdAndOrderIndex(projectId, 0);
         taskTosave.setStatus(defaultStatus);
@@ -132,15 +132,15 @@ public class TaskServiceJPA implements TaskService {
                 if(taskRequestDTO.getDateDebut() != null && taskRequestDTO.getDateDebut().isBefore(taskRequestDTO.getDateEcheance())){
                     foundTask.setDateDebut(taskRequestDTO.getDateDebut());
                 }
-                if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {
-                    Optional<Users> assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());
-                    if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssign_to());
-                    foundTask.setAssign_to(assignee.orElse(null));
+                if (taskRequestDTO.getAssignTo() != null && !taskRequestDTO.getAssignTo().trim().isEmpty()) {
+                    Optional<Users> assignee = userRepository.findByEmail(taskRequestDTO.getAssignTo());
+                    if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssignTo());
+                    foundTask.setAssignTo(assignee.orElse(null));
                     if (assignee.isPresent()) {
                         projectRepository.save(projet);
                     }
                 } else {
-                    foundTask.setAssign_to(null);
+                    foundTask.setAssignTo(null);
                 }
                 Task savedTask = taskRepository.save(foundTask);
                 atomicReference.set(Optional.of(taskMapper.taskToTaskRequestDto(savedTask)));
