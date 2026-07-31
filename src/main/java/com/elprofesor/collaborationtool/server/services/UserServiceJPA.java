@@ -105,4 +105,10 @@ public class UserServiceJPA implements UserService{
         });
         return atomicReference.get();
     }
+
+    @Override
+    public Optional<UserResponseDTO> getUserByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .map(userMapper::userToUserResponseDto);
+    }
 }

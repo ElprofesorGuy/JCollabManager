@@ -17,4 +17,5 @@ public interface UserService {
     Optional<UserResponseDTO> updateUser(UserRequestDTO existingUser, UUID userId);
     List<UserResponseDTO> getUsersList();
     Optional<UserResponseDTO> updateProfile(ProfileUpdateRequestDTO profileRequest, UUID userId, UserDetails userDetails);
+    Optional<UserResponseDTO> getUserByUsername(String username);
 }
