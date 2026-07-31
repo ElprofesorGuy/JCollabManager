@@ -11,10 +11,11 @@ import java.util.UUID;
 @Data
 public class TaskResponseDTO {
     private UUID id;
+    private UUID projectId;
     private String projectName;
     private String title;
     private String description;
-    private String assign_to;
+    private String assignTo;
     private String attachmentUrl;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate dateEcheance;
