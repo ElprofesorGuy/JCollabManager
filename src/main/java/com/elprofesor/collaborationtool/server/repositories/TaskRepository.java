@@ -24,4 +24,5 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
 
     List<Task> findByStatusIn(List<WorkflowStatus> statuses);
 
+    List<Task> findAllByAssignToId(UUID userId);
 }
