@@ -15,10 +15,39 @@ import Profile from './pages/Profile/Profile';
 import TasksDetailPage from './pages/Tasks/TasksDetailPage';
 import { Toaster } from 'react-hot-toast';
 import useAuthStore from './store/useAuthStore';
+import api from './api/axiosConfig';
+import { useEffect, useState } from 'react';
 
 
 function App() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, setUser, logout } = useAuthStore();
+  const [initializing, setInitializing] = useState(true);
+
+  // Rehydrate session from JWT cookie on first load
+  useEffect(() => {
+    const verifySession = async () => {
+      try {
+        const res = await api.get('/v1/user/me');
+        setUser(res.data);
+      } catch {
+        // Cookie absent or expired → clear store
+        logout();
+      } finally {
+        setInitializing(false);
+      }
+    };
+    verifySession();
+  }, []);
+
+  if (initializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0e17] via-[#0f172a] to-[#020617]">
+        <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+
   return (
     <ErrorBoundary>
       <BrowserRouter>

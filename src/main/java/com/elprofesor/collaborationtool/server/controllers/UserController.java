@@ -105,10 +105,19 @@ public class UserController {
             return userService.updateProfile(profileRequest, userId, userDetails)
                     .map(ResponseEntity::ok)
                     .orElseThrow(NotFoundException::new);
-        /*catch (SecurityException e) {
-            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-        } catch (IllegalArgumentException e) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }*/
+    }
+
+    @GetMapping("/api/v1/user/me")
+    @Operation(summary = "Utilisateur courant", description = "Retourne les données de l'utilisateur connecté via le cookie JWT.")
+    public ResponseEntity<UserResponseDTO> getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        String username = authentication.getName();
+        return userService.getUserByUsername(username)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(404).build());
     }
 }
+
