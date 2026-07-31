@@ -44,7 +44,7 @@ public class Users {
     @NotNull
     private LocalDate date_creation;
 
-    @OneToMany(mappedBy = "assign_to")
+    @OneToMany(mappedBy = "assignTo")
     private Set<Task> tasks;
 
     @NotNull

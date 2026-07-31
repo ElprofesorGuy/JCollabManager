@@ -51,7 +51,7 @@ public class Task {
 
     @ManyToOne
     @JoinColumn(name = "assign_to", columnDefinition = "uuid")
-    private Users assign_to;
+    private Users assignTo;
 
     @Column(name = "date_debut")
     private LocalDate dateDebut;
