@@ -106,6 +106,8 @@ const Dashboard = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [inProgressTasks, setInProgressTasks] = useState([]);
   const [notStartedTasks, setNotStartedTasks] = useState([]);
+  const [endedTasks, setEndedTasks] = useState([]);
+  const [overdueTasks, setOverdueTasks] = useState([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -122,15 +124,31 @@ const Dashboard = () => {
         
         if (user?.role === 'ADMIN') {
           setLoadingUsers(true);
-          const [usersRes, inProgressRes, notStartedRes] = await Promise.all([
+          const [usersRes, inProgressRes, notStartedRes, endedRes, overdueRes] = await Promise.all([
             api.get('/v1/user'),
             api.get('/v1/task/unachievedtask'),
             api.get('/v1/task/unstartedtask'),
+            api.get('/v1/task/endedtask'),
+            api.get('/v1/task/overduetask'),
           ]);
           setUsersList(usersRes.data || []);
           setInProgressTasks(inProgressRes.data || []);
           setNotStartedTasks(notStartedRes.data || []);
+          setEndedTasks(endedRes.data || []);
+          setOverdueTasks(overdueRes.data || []);
           setLoadingUsers(false);
+        } else {
+          // If normal user, fetch ONLY their specific assigned tasks counts via specific endpoints
+          const [inProgressRes, notStartedRes, endedRes, overdueRes] = await Promise.all([
+            api.get(`/v1/task/${user.id}/myUnachievedTasks`),
+            api.get(`/v1/task/${user.id}/myUnstartedTasks`),
+            api.get(`/v1/task/${user.id}/myEndedTasks`),
+            api.get(`/v1/task/${user.id}/myOverdueTasks`),
+          ]);
+          setInProgressTasks(inProgressRes.data || []);
+          setNotStartedTasks(notStartedRes.data || []);
+          setEndedTasks(endedRes.data || []);
+          setOverdueTasks(overdueRes.data || []);
         }
       } catch (error) {
         console.error("Erreur lors du chargement des données", error);
@@ -156,23 +174,33 @@ const Dashboard = () => {
     }
   };
 
-  // Global counts — use admin-specific endpoints when available, otherwise filter client-side
+  // Global counts — Admin uses precise dedicated endpoints, Team/User tabs might still rely on filtered scope
   const isAdmin = user?.role === 'ADMIN';
   const activeProjectsCount = data.projects.length;
-  const overdueTasksCount = data.tasks.filter(t => isOverdue(t.dateEcheance, t.isCompleted) && !t.submissionDate).length;
-  const completedTasksCount = data.tasks.filter(t => t.isCompleted).length;
+  const overdueTasksCount = isAdmin ? overdueTasks.length : data.tasks.filter(t => isOverdue(t.dateEcheance, t.isCompleted) && !t.submissionDate).length;
+  const completedTasksCount = isAdmin ? endedTasks.length : data.tasks.filter(t => t.isCompleted).length;
   const inProgressCount = isAdmin ? inProgressTasks.length : data.tasks.filter(t => !t.isCompleted && !isOverdue(t.dateEcheance, t.isCompleted)).length;
   const notStartedCount = isAdmin ? notStartedTasks.length : data.tasks.filter(t => !t.isCompleted).length;
 
-  // Current user's specific tasks and counts
-  const allMyTasks = data.tasks.filter(t => (t.assign_to === user?.email || t.assign_to === user?.username));
+  const taskStatsData = getDynamicStats(data.tasks);
+
+  // Current user's tasks — scoped to assigned tasks
+  const allMyTasks = data.tasks.filter(t => t.assignTo === user?.email || t.assignTo === user?.username);
   const myTotalCount = allMyTasks.length;
   const myTaskStatsData = getDynamicStats(allMyTasks);
-  const myOverdueCount = allMyTasks.filter(t => isOverdue(t.dateEcheance, t.isCompleted) && !t.submissionDate).length;
-  const myCompletedCount = allMyTasks.filter(t => t.isCompleted).length;
-  const myInProgressCount = allMyTasks.filter(t => !t.isCompleted && !isOverdue(t.dateEcheance, t.isCompleted)).length;
+  
+  // Real values for personal dashboard from new endpoints (for both admin and normal users)
+  const myOverdueCount = isAdmin 
+    ? overdueTasks.filter(t => t.assignTo === user?.email || t.assignTo === user?.username).length
+    : overdueTasks.length;
+  const myCompletedCount = isAdmin
+    ? endedTasks.filter(t => t.assignTo === user?.email || t.assignTo === user?.username).length
+    : endedTasks.length;
+  const myInProgressCount = isAdmin
+    ? inProgressTasks.filter(t => t.assignTo === user?.email || t.assignTo === user?.username).length
+    : inProgressTasks.length;
   const myNotStartedCount = isAdmin
-    ? notStartedTasks.filter(t => t.assign_to === user?.email || t.assign_to === user?.username).length
+    ? notStartedTasks.filter(t => t.assignTo === user?.email || t.assignTo === user?.username).length
     : allMyTasks.filter(t => !t.isCompleted).length;
   
   // Get up to 3 most recent projects
@@ -228,8 +256,8 @@ const Dashboard = () => {
     const allStatuses = [...new Set(data.tasks.map(t => t.workflowStatus || "Non defini"))];
     
     data.tasks.forEach(t => {
-      if (!t.assign_to) return;
-      const name = t.assign_to.split('@')[0];
+      if (!t.assignTo) return;
+      const name = t.assignTo.split('@')[0];
       if (!userMap[name]) {
         userMap[name] = { name };
         allStatuses.forEach(s => userMap[name][s] = 0);
@@ -667,7 +695,7 @@ const Dashboard = () => {
                           <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
                             <span className="truncate max-w-[100px] text-primary-400 font-semibold">{task.projectName}</span>
                             <span>•</span>
-                            <span className="truncate font-medium">{task.assign_to ? task.assign_to.split('@')[0] : 'Non assigné'}</span>
+                            <span className="truncate font-medium">{task.assignTo ? task.assignTo.split('@')[0] : 'Non assigné'}</span>
                           </div>
                         </div>
                         <div className="flex flex-col items-end shrink-0 gap-1">

@@ -43,7 +43,7 @@ const isOverdue = (dateEcheance, isCompleted) => {
 const taskSchema = z.object({
   title: z.string().min(3, 'Le titre doit faire au moins 3 caractères'),
   description: z.string().min(5, 'La description doit faire au moins 5 caractères'),
-  assign_to: z.string().optional(),
+  assignTo: z.string().optional(),
   workflowStatus: z.string().optional(),
   taskType: z.enum(['EPIC', 'STORY', 'TASK', 'SUBTASK']).optional(),
   parentTaskName: z.string().optional(),
@@ -109,7 +109,7 @@ const EditTaskModal = ({ task, onClose, onSaved, statuses }) => {
     defaultValues: {
       title: task.title || '',
       description: task.description || '',
-      assign_to: task.assign_to || '',
+      assignTo: task.assignTo || '',
       workflowStatus: task.workflowStatus || '',
       taskType: task.taskType || 'TASK',
       parentTaskName: task.parentTaskName || '',
@@ -124,7 +124,7 @@ const EditTaskModal = ({ task, onClose, onSaved, statuses }) => {
       const payload = {
         title: data.title,
         description: data.description,
-        assign_to: data.assign_to || '',
+        assignTo: data.assignTo || '',
         workflowStatus: data.workflowStatus || task.workflowStatus,
         taskType: data.taskType || 'TASK',
         parentTaskName: data.parentTaskName || '',
@@ -221,7 +221,7 @@ const EditTaskModal = ({ task, onClose, onSaved, statuses }) => {
             <div>
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Assigner à <span className="text-slate-500 font-normal">— Optionnel</span></label>
               <input
-                {...register('assign_to')}
+                {...register('assignTo')}
                 placeholder="email@exemple.com"
                 className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600"
               />
@@ -295,11 +295,11 @@ const TaskRow = ({ task, config, canEdit, onEditClick }) => {
           </span>
 
           {/* Assigné */}
-          {task.assign_to && (
-            <span className="flex items-center gap-1 text-slate-400 bg-slate-800/60 border border-slate-700 px-2 py-0.5 rounded-md font-semibold">
-              <Users className="w-3 h-3" />
-              {task.assign_to.split('@')[0]}
-            </span>
+          {task.assignTo && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary-500/10 text-primary-400 rounded-lg text-xs font-semibold whitespace-nowrap">
+              <Users className="w-3.5 h-3.5" />
+              {task.assignTo.split('@')[0]}
+            </div>
           )}
         </div>
       </div>
@@ -365,29 +365,22 @@ const TasksDetailPage = () => {
     try {
       let fetched = [];
 
-      if (category === 'in-progress' && isAdmin) {
-        const res = await api.get('/v1/task/unachievedtask');
+      if (category === 'in-progress') {
+        const url = isAdmin ? '/v1/task/unachievedtask' : `/v1/task/${user.id}/myUnachievedTasks`;
+        const res = await api.get(url);
         fetched = res.data || [];
-      } else if (category === 'not-started' && isAdmin) {
-        const res = await api.get('/v1/task/unstartedtask');
+      } else if (category === 'not-started') {
+        const url = isAdmin ? '/v1/task/unstartedtask' : `/v1/task/${user.id}/myUnstartedTasks`;
+        const res = await api.get(url);
         fetched = res.data || [];
-      } else {
-        // Fallback: load all tasks and filter client-side
-        const res = await api.get('/v1/task?pageSize=1000');
-        const all = res.data?.content || res.data || [];
-
-        if (category === 'completed') {
-          fetched = all.filter(t => t.isCompleted);
-        } else if (category === 'overdue') {
-          fetched = all.filter(t => isOverdue(t.dateEcheance, t.isCompleted) && !t.submissionDate);
-        } else if (category === 'in-progress') {
-          // non-admin fallback: tasks that are not completed and not literally overdue
-          // We cannot know orderIndex without the field, but we can exclude isCompleted=true
-          fetched = all.filter(t => !t.isCompleted);
-        } else if (category === 'not-started') {
-          // non-admin: best effort — show tasks without progress
-          fetched = all.filter(t => !t.isCompleted);
-        }
+      } else if (category === 'completed') {
+        const url = isAdmin ? '/v1/task/endedtask' : `/v1/task/${user.id}/myEndedTasks`;
+        const res = await api.get(url);
+        fetched = res.data || [];
+      } else if (category === 'overdue') {
+        const url = isAdmin ? '/v1/task/overduetask' : `/v1/task/${user.id}/myOverdueTasks`;
+        const res = await api.get(url);
+        fetched = res.data || [];
       }
 
       // Enrich tasks with projectId by fetching projects
@@ -448,7 +441,7 @@ const TasksDetailPage = () => {
     return (
       t.title?.toLowerCase().includes(q) ||
       t.projectName?.toLowerCase().includes(q) ||
-      t.assign_to?.toLowerCase().includes(q)
+      t.assignTo?.toLowerCase().includes(q)
     );
   });
 

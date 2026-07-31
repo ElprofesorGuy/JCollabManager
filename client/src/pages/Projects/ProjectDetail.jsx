@@ -15,7 +15,7 @@ import { AlignLeft, Network } from "lucide-react";
 const taskSchema = z.object({
   title: z.string().min(3, "Le titre doit faire au moins 3 caracteres"),
   description: z.string().min(5, "La description doit faire au moins 5 caracteres"),
-  assign_to: z.string().optional(),
+  assignTo: z.string().optional(),
   workflowStatus: z.string().optional(),
   taskType: z.enum(["EPIC", "STORY", "TASK", "SUBTASK"]).optional(),
   parentTaskName: z.string().optional(),
@@ -191,10 +191,10 @@ const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDele
               </div>
               <p className="text-slate-400 text-xs line-clamp-2 mb-3 leading-relaxed">{task.description}</p>
               <div className="flex flex-wrap items-center gap-1.5 mt-auto">
-                {task.assign_to && (
-                  <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${colorConfig.assignee}`}>
-                    <Users className="w-3 h-3" />
-                    <span>{task.assign_to}</span>
+                {task.assignTo && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800/80 rounded-lg text-xs font-medium text-slate-300">
+                  <User className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{task.assignTo}</span>
                   </div>
                 )}
                 {status.completed && task.submissionDate ? (
@@ -309,21 +309,11 @@ const ProjectDetail = () => {
     setTaskError("");
     setSelectedTask(task);
     if (task) {
-      let isoDateEcheance = "";
-      if (task.dateEcheance) {
-        if (Array.isArray(task.dateEcheance)) { const [y, m, d] = task.dateEcheance; isoDateEcheance = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
-        else { isoDateEcheance = String(task.dateEcheance).slice(0, 10); }
-      }
-      let isoDateDebut = "";
-      if (task.dateDebut) {
-        if (Array.isArray(task.dateDebut)) { const [y, m, d] = task.dateDebut; isoDateDebut = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
-        else { isoDateDebut = String(task.dateDebut).slice(0, 10); }
-      }
-      setSelectedPredecessors(task.id ? dependencies.filter(d => d.successorId === task.id).map(d => d.predecessorId) : []);
-      reset({ title: task.title, description: task.description, assign_to: task.assign_to || "", workflowStatus: task.workflowStatus || (statuses[0]?.name || ""), taskType: task.taskType || "TASK", parentTaskName: task.parentTaskName || "", dateDebut: isoDateDebut, dateEcheance: isoDateEcheance });
+      const isoDateDebut = task.dateDebut ? new Date(task.dateDebut).toISOString().split('T')[0] : "";
+      const isoDateEcheance = task.dateEcheance ? new Date(task.dateEcheance).toISOString().split('T')[0] : "";
+      reset({ title: task.title, description: task.description, assignTo: task.assignTo || "", workflowStatus: task.workflowStatus || (statuses[0]?.name || ""), taskType: task.taskType || "TASK", parentTaskName: task.parentTaskName || "", dateDebut: isoDateDebut, dateEcheance: isoDateEcheance });
     } else {
-      setSelectedPredecessors([]);
-      reset({ title: "", description: "", assign_to: "", workflowStatus: statuses[0]?.name || "", taskType: "TASK", parentTaskName: "", dateDebut: "", dateEcheance: "" });
+      reset({ title: "", description: "", assignTo: "", workflowStatus: statuses[0]?.name || "", taskType: "TASK", parentTaskName: "", dateDebut: "", dateEcheance: "" });
     }
     setIsTaskModalOpen(true);
   };
@@ -331,7 +321,7 @@ const ProjectDetail = () => {
   const onTaskSubmit = async (data) => {
     try {
       setTaskError("");
-      const payload = { projectName: project.title, title: data.title, description: data.description, workflowStatus: data.workflowStatus || statuses[0]?.name || "", taskType: data.taskType || "TASK", parentTaskName: data.parentTaskName || "", assign_to: data.assign_to || "", dateDebut: data.dateDebut || null, dateEcheance: data.dateEcheance || null };
+      const payload = { projectName: project.title, title: data.title, description: data.description, workflowStatus: data.workflowStatus || statuses[0]?.name || "", taskType: data.taskType || "TASK", parentTaskName: data.parentTaskName || "", assignTo: data.assignTo || "", dateDebut: data.dateDebut || null, dateEcheance: data.dateEcheance || null };
       if (selectedTask) {
         await api.put(`/v1/task/${selectedTask.id}/${project.id}`, payload);
         const currentPredecessors = dependencies.filter(d => d.successorId === selectedTask.id).map(d => d.predecessorId);
@@ -496,7 +486,7 @@ const ProjectDetail = () => {
       const payload = {
         title: task.title,
         description: task.description,
-        assign_to: task.assign_to,
+        assignTo: task.assignTo,
         dateEcheance: task.dateEcheance,
         dateDebut: task.dateDebut,
         taskType: task.taskType,
@@ -535,7 +525,7 @@ const ProjectDetail = () => {
     doc.text("Description :", 14, 42); doc.setFontSize(10);
     const splitDescription = doc.splitTextToSize(project.description || "", 180);
     doc.text(splitDescription, 14, 48);
-    doc.autoTable({ startY: 48 + splitDescription.length * 5 + 10, head: [["Tache", "Statut", "Assigne a", "Echeance"]], body: tasks.map(t => [t.title, t.workflowStatus || "-", t.assign_to || "Non assigne", t.dateEcheance || "-"]), theme: "grid", headStyles: { fillColor: [37, 99, 235] } });
+    doc.autoTable({ startY: 48 + splitDescription.length * 5 + 10, head: [["Tache", "Statut", "Assigne a", "Echeance"]], body: tasks.map(t => [t.title, t.workflowStatus || "-", t.assignTo || "Non assigne", t.dateEcheance || "-"]), theme: "grid", headStyles: { fillColor: [37, 99, 235] } });
     doc.save(`${project.title.replace(/\s+/g, "_")}_rapport.pdf`);
   };
 
@@ -721,7 +711,7 @@ const ProjectDetail = () => {
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Assigner a <span className="text-slate-500 font-normal">- Optionnel</span></label>
                   {memberEmails.length > 0 ? (
-                    <select {...register("assign_to")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
+                    <select {...register("assignTo")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
                       <option value="">-- Non assigne --</option>
                       {memberEmails.map(email => (<option key={email} value={email}>{email}</option>))}
                     </select>
