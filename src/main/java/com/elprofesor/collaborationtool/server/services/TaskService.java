@@ -22,4 +22,11 @@ public interface TaskService {
     boolean isPredecessorsAllCompleted(Task task);
     List<TaskResponseDTO> listofUnachievedTask();
     List<TaskResponseDTO> listofUnstartedTask();
+    List<TaskResponseDTO> listofEndedTask();
+    List<TaskResponseDTO> listofOverdueTask();
+    List<TaskResponseDTO> listMyUnstartedTask(UUID userId);
+    List<TaskResponseDTO> listMyUnachievedTask(UUID userId);
+    List<TaskResponseDTO> listMyendedTask(UUID userId);
+    List<TaskResponseDTO> listMyOverdueTask(UUID userId);
+    List<TaskResponseDTO> listMyTasks(UUID userId);
 }

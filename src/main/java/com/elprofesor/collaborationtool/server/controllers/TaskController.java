@@ -146,4 +146,58 @@ public class TaskController {
     public List<TaskResponseDTO> displayUnstartedTask(){
         return taskService.listofUnstartedTask();
     }
+
+    @GetMapping(TASK_PATH + "/endedtask")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Liste de toutes les tâches achevées")
+    public List<TaskResponseDTO> displayEndedTask(){
+        return taskService.listofEndedTask();
+    }
+
+    @GetMapping(TASK_PATH + "/overduetask")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Liste de toutes les tâches en retard")
+    public List<TaskResponseDTO> displayOverdueTask(){
+        return taskService.listofOverdueTask();
+    }
+
+    @GetMapping(TASK_PATH + "/{userId}/myUnstartedTasks")
+    @Operation(summary = "Liste des tâches non commencées par un utilisateur spécifique")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des tâches affichée avec succès"),
+            @ApiResponse(responseCode = "403", description = "Vous n'avez pas accès à cette information")
+    })
+    public List<TaskResponseDTO> displayMyUnstartedTasks(@PathVariable("userId") UUID userId){
+        return taskService.listMyUnstartedTask(userId);
+    }
+
+    @GetMapping(TASK_PATH + "/{userId}/myUnachievedTasks")
+    @Operation(summary = "Liste des tâches en cours de traitement par un utilisateur spécifique")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des tâches affichée avec succès"),
+            @ApiResponse(responseCode = "403", description = "Vous n'avez pas accès à cette information")
+    })
+    public List<TaskResponseDTO> displayMyUnachievedTasks(@PathVariable("userId") UUID userId){
+        return taskService.listMyUnachievedTask(userId);
+    }
+
+    @GetMapping(TASK_PATH + "/{userId}/myEndedTasks")
+    @Operation(summary = "Liste des tâches achevées par un utilisateur spécifique")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des tâches affichée avec succès"),
+            @ApiResponse(responseCode = "403", description = "Vous n'avez pas accès à cette information")
+    })
+    public List<TaskResponseDTO> displayMyEndedTasks(@PathVariable("userId") UUID userId){
+        return taskService.listMyendedTask(userId);
+    }
+
+    @GetMapping(TASK_PATH + "/{userId}/myOverdueTasks")
+    @Operation(summary = "Liste des tâches en retard d'un utilisateur spécifique")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des tâches affichée avec succès"),
+            @ApiResponse(responseCode = "403", description = "Vous n'avez pas accès à cette information")
+    })
+    public List<TaskResponseDTO> displayMyOverdueTasks(@PathVariable("userId") UUID userId){
+        return taskService.listMyOverdueTask(userId);
+    }
 }

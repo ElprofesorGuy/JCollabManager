@@ -224,5 +224,64 @@ public class TaskServiceJPA implements TaskService {
                 .toList();
     }
 
+    @Override
+    public List<TaskResponseDTO> listMyUnstartedTask(UUID userId){
+        List<Task> myTasks = taskRepository.findAllByAssignToId(userId);
+        return myTasks.stream()
+                .filter(task -> task.getStatus() != null && task.getStatus().getOrderIndex() == 0)
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listMyUnachievedTask(UUID userId){
+        List<Task> myTasks = taskRepository.findAllByAssignToId(userId);
+        return myTasks.stream()
+                .filter(task -> task.getStatus() != null && task.getStatus().getOrderIndex() != 0 && !task.getStatus().getCompleted())
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listMyendedTask(UUID userId){
+        List<Task> myTasks = taskRepository.findAllByAssignToId(userId);
+        return myTasks.stream()
+                .filter(task -> task.getStatus() != null && task.getStatus().getCompleted())
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listMyOverdueTask(UUID userId){
+        List<Task> myTasks = taskRepository.findAllByAssignToId(userId);
+        return myTasks.stream()
+                .filter(task -> task.getDateEcheance() != null && task.getDateEcheance().isBefore(LocalDate.now()) && (task.getStatus() == null || !task.getStatus().getCompleted()))
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listofEndedTask(){
+        return taskRepository.findAll().stream()
+                .filter(task -> task.getStatus() != null && task.getStatus().getCompleted())
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listofOverdueTask(){
+        return taskRepository.findAll().stream()
+                .filter(task -> task.getDateEcheance() != null && task.getDateEcheance().isBefore(LocalDate.now()) && (task.getStatus() == null || !task.getStatus().getCompleted()))
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listMyTasks(UUID userId){
+        return taskRepository.findAllByAssignToId(userId).stream()
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
 
 }
