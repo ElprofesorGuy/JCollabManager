@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Layers, ArrowLeft, Plus, Loader2, Users, Trash2, UserPlus, AlertCircle, Edit2, AlertTriangle, Calendar, Paperclip, Download, Upload, CheckCircle, Pencil, Check, X } from "lucide-react";
+import { Layers, ArrowLeft, Plus, Loader2, Users, User, Trash2, UserPlus, AlertCircle, Edit2, AlertTriangle, Calendar, Paperclip, Download, Upload, CheckCircle, Pencil, Check, X } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 import api from "../../api/axiosConfig";
 import { useForm } from "react-hook-form";
@@ -234,6 +234,7 @@ const ProjectDetail = () => {
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [statuses, setStatuses] = useState([]);
+  const [transitions, setTransitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
@@ -281,6 +282,10 @@ const ProjectDetail = () => {
         setStatuses(sorted);
       } catch (e) { setStatuses([]); }
       try {
+        const transitionRes = await api.get(`/v1/projects/${id}/transitions`);
+        setTransitions(Array.isArray(transitionRes.data) ? transitionRes.data : []);
+      } catch (e) { setTransitions([]); }
+      try {
         const depRes = await api.get(`/v1/projects/${id}/dependencies`);
         setDependencies(Array.isArray(depRes.data) ? depRes.data : []);
       } catch (e) { setDependencies([]); }
@@ -304,6 +309,24 @@ const ProjectDetail = () => {
   };
 
   const openMembersModal = () => { setIsMembersModalOpen(true); fetchMembers(); };
+
+  const getStatusByName = (name) => statuses.find(s => s.name === name);
+
+  const getSelectableStatuses = (task) => {
+    if (!task) return statuses;
+    const currentStatus = getStatusByName(task.workflowStatus);
+    if (!currentStatus) return statuses;
+    const allowedStatusIds = transitions
+      .filter(t => t.fromStatusId === currentStatus.id)
+      .map(t => t.toStatusId);
+    return statuses.filter(s => s.id === currentStatus.id || allowedStatusIds.includes(s.id));
+  };
+
+  const canMoveTaskToStatus = (task, targetStatus) => {
+    const currentStatus = getStatusByName(task.workflowStatus);
+    if (!currentStatus || currentStatus.id === targetStatus.id) return true;
+    return transitions.some(t => t.fromStatusId === currentStatus.id && t.toStatusId === targetStatus.id);
+  };
 
   const openTaskModal = (task = null) => {
     setTaskError("");
@@ -478,6 +501,12 @@ const ProjectDetail = () => {
   const onDropTask = async (taskId, targetStatus) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task || task.workflowStatus === targetStatus.name) return;
+    if (!canMoveTaskToStatus(task, targetStatus)) {
+      const message = `Transition non autorisee : ${task.workflowStatus || "Sans statut"} -> ${targetStatus.name}`;
+      setTaskError(message);
+      alert(message);
+      return;
+    }
     
     // Optimistic update
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, workflowStatus: targetStatus.name } : t));
@@ -668,7 +697,7 @@ const ProjectDetail = () => {
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Statut</label>
                   <select {...register("workflowStatus")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
-                    {statuses.map(s => (<option key={s.id} value={s.name}>{s.name}</option>))}
+                    {getSelectableStatuses(selectedTask).map(s => (<option key={s.id} value={s.name}>{s.name}</option>))}
                   </select>
                 </div>
                 {selectedTask && selectedTask.submissionDate && (

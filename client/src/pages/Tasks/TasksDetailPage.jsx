@@ -102,8 +102,15 @@ const CATEGORY_CONFIG = {
 
 /* ─────────── EditTaskModal ─────────── */
 
-const EditTaskModal = ({ task, onClose, onSaved, statuses }) => {
+const EditTaskModal = ({ task, onClose, onSaved, statuses, transitions }) => {
   const [error, setError] = useState('');
+  const currentStatus = statuses.find(s => s.name === task.workflowStatus);
+  const allowedStatusIds = currentStatus
+    ? transitions.filter(t => t.fromStatusId === currentStatus.id).map(t => t.toStatusId)
+    : [];
+  const selectableStatuses = currentStatus
+    ? statuses.filter(s => s.id === currentStatus.id || allowedStatusIds.includes(s.id))
+    : statuses;
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(taskSchema),
     defaultValues: {
@@ -180,7 +187,7 @@ const EditTaskModal = ({ task, onClose, onSaved, statuses }) => {
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Statut</label>
                 <select {...register('workflowStatus')} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
-                  {statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  {selectableStatuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </div>
             )}
@@ -351,6 +358,7 @@ const TasksDetailPage = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [statuses, setStatuses] = useState([]);
   const [statusesByProject, setStatusesByProject] = useState({});
+  const [transitionsByProject, setTransitionsByProject] = useState({});
   const [search, setSearch] = useState('');
   const [members, setMembers] = useState({});
 
@@ -400,20 +408,24 @@ const TasksDetailPage = () => {
       // Fetch statuses & members for edit modal (per project)
       const uniqueProjectIds = [...new Set(fetched.map(t => t.projectId).filter(Boolean))];
       const statusMap = {};
+      const transitionMap = {};
       const memberMap = {};
 
       await Promise.all(uniqueProjectIds.map(async (pid) => {
         try {
-          const [sRes, mRes] = await Promise.all([
+          const [sRes, tRes, mRes] = await Promise.all([
             api.get(`/v1/projects/${pid}/statuses`),
+            api.get(`/v1/projects/${pid}/transitions`),
             api.get(`/v1/project/${pid}/members`),
           ]);
           statusMap[pid] = sRes.data || [];
+          transitionMap[pid] = tRes.data || [];
           memberMap[pid] = mRes.data || [];
         } catch { /* ignore */ }
       }));
 
       setStatusesByProject(statusMap);
+      setTransitionsByProject(transitionMap);
       setMembers(memberMap);
     } catch (err) {
       setError('Impossible de charger les tâches.');
@@ -446,6 +458,7 @@ const TasksDetailPage = () => {
   });
 
   const getStatusesForTask = (task) => statusesByProject[task.projectId] || [];
+  const getTransitionsForTask = (task) => transitionsByProject[task.projectId] || [];
 
   /* ── render ── */
   return (
@@ -527,6 +540,7 @@ const TasksDetailPage = () => {
         <EditTaskModal
           task={editingTask}
           statuses={getStatusesForTask(editingTask)}
+          transitions={getTransitionsForTask(editingTask)}
           onClose={() => setEditingTask(null)}
           onSaved={() => {
             setEditingTask(null);

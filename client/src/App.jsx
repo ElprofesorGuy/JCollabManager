@@ -27,7 +27,7 @@ function App() {
   useEffect(() => {
     const verifySession = async () => {
       try {
-        const res = await api.get('/v1/user/me');
+        const res = await api.get('/v1/auth/login');
         setUser(res.data);
       } catch {
         // Cookie absent or expired → clear store
@@ -61,43 +61,43 @@ function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                
+
                 <Route path="/dashboard" element={
                   <ProtectedRoute>
                     <Dashboard />
                   </ProtectedRoute>
                 } />
-                
+
                 <Route path="/projects" element={
                   <ProtectedRoute>
                     <ProjectList />
                   </ProtectedRoute>
                 } />
-                
+
                 <Route path="/projects/:id" element={
                   <ProtectedRoute>
                     <ProjectDetail />
                   </ProtectedRoute>
                 } />
-                
+
                 <Route path="/users" element={
                   <ProtectedRoute>
                     <UserManagement />
                   </ProtectedRoute>
                 } />
-                
+
                 <Route path="/profile" element={
                   <ProtectedRoute>
                     <Profile />
                   </ProtectedRoute>
                 } />
-                
+
                 <Route path="/tasks/:category" element={
                   <ProtectedRoute>
                     <TasksDetailPage />
                   </ProtectedRoute>
                 } />
-                
+
                 {/* Fallback route */}
                 <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
                 <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
