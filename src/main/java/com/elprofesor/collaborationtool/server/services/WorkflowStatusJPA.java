@@ -8,8 +8,10 @@ import com.elprofesor.collaborationtool.server.models.WorkflowStatusRequestDTO;
 import com.elprofesor.collaborationtool.server.models.WorkflowStatusResponseDTO;
 import com.elprofesor.collaborationtool.server.repositories.ProjectRepository;
 import com.elprofesor.collaborationtool.server.repositories.WorkflowStatusRepository;
+import com.elprofesor.collaborationtool.server.repositories.WorkflowTransitionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class WorkflowStatusJPA implements WorkflowStatusService{
 
     private final WorkflowStatusRepository workflowStatusRepository;
+    private final WorkflowTransitionRepository workflowTransitionRepository;
     private final WorkflowStatusMapper mapper;
     private final ProjectRepository projectRepository;
 
@@ -35,7 +38,6 @@ public class WorkflowStatusJPA implements WorkflowStatusService{
                 .completed(workflowStatusRequestDTO.isCompleted())
                 .project(associatedProject)
                 .build();
-        System.out.println("Nombre de status déjà présent : " + count);
          return mapper.workflowStatusToDto(workflowStatusRepository.save(newStatus));
     }
 
@@ -60,6 +62,7 @@ public class WorkflowStatusJPA implements WorkflowStatusService{
     }
 
     @Override
+    @Transactional
     public void deleteStatus(UUID workflowStatusid) {
         // Fetch the status before deleting it
         WorkflowStatus status = workflowStatusRepository.findById(workflowStatusid)
@@ -69,6 +72,7 @@ public class WorkflowStatusJPA implements WorkflowStatusService{
         boolean wasCompleted = status.getCompleted();
         int deletedOrderIndex = status.getOrderIndex();
 
+        workflowTransitionRepository.deleteByFromStatusIdOrToStatusId(workflowStatusid, workflowStatusid);
         workflowStatusRepository.deleteById(workflowStatusid);
 
         // Fetch remaining statuses for this specific project, ordered by index

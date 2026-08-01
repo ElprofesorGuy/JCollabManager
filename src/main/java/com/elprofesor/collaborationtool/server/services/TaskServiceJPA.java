@@ -30,6 +30,7 @@ public class TaskServiceJPA implements TaskService {
     private final ProjectRepository projectRepository;
     private final TaskDependencyRepository dependencyRepository;
     private final WorkflowStatusRepository workflowStatusRepository;
+    private final WorkflowTransitionService workflowTransitionService;
     private final FileStorageService fileStorageService;
     private final static int DEFAULT_PAGE = 0;
     private final static int DEFAULT_PAGE_SIZE = 20;
@@ -59,7 +60,6 @@ public class TaskServiceJPA implements TaskService {
     @Override
     public boolean isPredecessorsAllCompleted(Task task) {
         boolean isAllCompleted = true;
-        //Task task = taskRepository.findById(id).orElseThrow(() -> new NotFoundException("Tâche inexistante"));
         Set<TaskDependency> dependencies = dependencyRepository.findBySuccessor(task);
         for(TaskDependency item : dependencies){
             if(!item.getPredecessor().getStatus().getCompleted())
@@ -102,13 +102,17 @@ public class TaskServiceJPA implements TaskService {
         Project projet = tache.getProject();
        WorkflowStatus workflowStatus = workflowStatusRepository.findByNameIgnoringCaseAndProject(taskRequestDTO.getWorkflowStatus(), projet).orElseThrow(()
                -> new NotFoundException("Statut inexistant"));
-        if(workflowStatus.getProject().getId().equals(projet.getId())){
+        //if(workflowStatus.getProject().getId().equals(projet.getId())){
+            workflowTransitionService.validateTransition(tache, workflowStatus);//S'il effectue une modifciation de statut, on vérifie si cela est possible.
             AtomicReference<Optional<TaskRequestDTO>> atomicReference = new AtomicReference<>();
             taskRepository.findById(id).ifPresentOrElse(foundTask -> {
 
                 foundTask.setTitle(taskRequestDTO.getTitle());
 
-                if(tache.getStatus().getCompleted()){
+                if(tache.getStatus().getCompleted() && !workflowStatus.getId().equals(tache.getStatus().getId())){
+                    foundTask.setSubmissionDate(null);
+                    foundTask.setStatus(workflowStatus);
+                } else if(tache.getStatus().getCompleted()){
                     throw new IllegalArgumentException("Cette tâche est déjà marquée comme terminé, vous ne pouvez pas la modifier");
 
                 }else if(!tache.getStatus().getCompleted() && workflowStatus.getCompleted()){
@@ -148,9 +152,9 @@ public class TaskServiceJPA implements TaskService {
                 atomicReference.set(Optional.empty());
             });
             return atomicReference.get();
-        }else{
-            throw new IllegalArgumentException("Mauvaise opération");
-        }
+        //}else{
+        //    throw new IllegalArgumentException("Mauvaise opération");
+        //}
 
     }
 

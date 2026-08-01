@@ -18,4 +18,11 @@ public class GlobalExceptionHandler {
         response.put("message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
+
+    @ExceptionHandler(WorkflowTransitionForbiddenException.class)
+    public ResponseEntity<Object> handleWorkflowTransitionForbiddenException(WorkflowTransitionForbiddenException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
 }

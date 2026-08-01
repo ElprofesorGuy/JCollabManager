@@ -21,6 +21,7 @@ public class WorkflowStatusController {
     private final WorkflowStatusService workflowStatusService;
 
     @PostMapping("/api/v1/projects/{projectId}/statuses")
+    @PreAuthorize("@projectSecurityServiceJPA.hasProjectRole(#projectId, 'MANAGER')")
     public ResponseEntity createNewWorkflowStatus(@RequestBody WorkflowStatusRequestDTO dto, @PathVariable("projectId") UUID projectId){
         WorkflowStatusResponseDTO newWorflowStatus = workflowStatusService.addWorkflowStatus(dto, projectId);
         HttpHeaders header = new HttpHeaders();
@@ -34,7 +35,7 @@ public class WorkflowStatusController {
         return workflowStatusService.getWorkflowStatusOfProject(projectId);
     }
 
-    @PreAuthorize("@projectSecurityServiceJPA.isProjectMember(#projectId)")
+    @PreAuthorize("@projectSecurityServiceJPA.hasProjectRole(#projectId, 'MANAGER')")
     @PutMapping("/api/v1/projects/{projectId}/statuses/{workflowStatusId}")
     public ResponseEntity updateWorkflowStatus(@PathVariable("projectId") UUID projectId, @RequestBody WorkflowStatusRequestDTO requestDTO, @PathVariable("workflowStatusId") UUID id){
         if(workflowStatusService.modifyWorkflowStatusOfProject(id, requestDTO).isEmpty()){
@@ -45,6 +46,7 @@ public class WorkflowStatusController {
     }
 
     @DeleteMapping("/api/v1/projects/{projectId}/statuses/{workflowStatusId}")
+    @PreAuthorize("@projectSecurityServiceJPA.hasProjectRole(#projectId, 'MANAGER')")
     public ResponseEntity deleteWorkflowStatus(@PathVariable("workflowStatusId") UUID workflowStatusId) {
         workflowStatusService.deleteStatus(workflowStatusId);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
