@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 const useAuthStore = create(
   persist(
@@ -23,7 +23,8 @@ const useAuthStore = create(
       }),
     }),
     {
-      name: 'auth-storage', // clé dans localStorage
+      name: 'auth-storage', // clé
+      storage: createJSONStorage(() => sessionStorage), // Utiliser sessionStorage (s'efface à la fermeture de l'onglet)
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )

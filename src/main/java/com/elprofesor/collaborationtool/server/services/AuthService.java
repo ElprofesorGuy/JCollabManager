@@ -40,11 +40,11 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword())  //Ligne modifié
         );
 
-        Optional<Users> user = userRepository.findByUsername(dto.getUsername());  //Ligne modifiée
-                //.orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+        Users user = userRepository.findByUsername(dto.getUsername())
+                .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("Utilisateur non trouvé"));
 
-        String token = jwtUtil.generateToken(user.get().getUsername());// Ligne modifiée
-        return new AuthResponseDTO(token, userMapper.userToUserResponseDto(user.get()));
+        String token = jwtUtil.generateToken(user.getUsername());
+        return new AuthResponseDTO(token, userMapper.userToUserResponseDto(user));
     }
 
     //Forgot Password

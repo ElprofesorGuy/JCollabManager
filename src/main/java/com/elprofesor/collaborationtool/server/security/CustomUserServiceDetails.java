@@ -25,13 +25,14 @@ public class CustomUserServiceDetails implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "Utilisateur non trouvé : " + email
                 ));*/
-        Optional<Users> user = userRepository.findByUsername(username);
+        Users user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé : " + username));
 
         UserDetails userDetails = User
                 .builder()
-                .username(user.get().getUsername())
-                .password(user.get().getPassword())
-                .roles(user.get().getRole().name())
+                .username(user.getUsername())
+                .password(user.getPassword())
+                .roles(user.getRole().name())
                 .build();
 
         return userDetails;
