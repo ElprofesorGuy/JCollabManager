@@ -46,7 +46,7 @@ public class CommentServiceJPA implements CommentService {
                 .build();
         NotificationRequestDTO dto = NotificationRequestDTO.builder()
                 .message("Un nouveau commentaire a été fait sur une de vos tâches")
-                .recipientUsername(task.getAssign_to().getUsername())
+                .recipientUsername(task.getAssignTo().getUsername())
                 .type(NotificationType.COMMENTAIRE_AJOUTE)
                 .targetUrl("/projects/" + task.getProject().getId())
                 .build();

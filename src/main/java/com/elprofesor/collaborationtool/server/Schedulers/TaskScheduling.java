@@ -22,8 +22,8 @@ public class TaskScheduling {
         LocalDate deadline = LocalDate.now().plusDays(3);
         List<Task> upcomingDeadlineTask = taskRepository.findByDateEcheanceBetweenAndStatus_CompletedFalse(LocalDate.now(), deadline);
         upcomingDeadlineTask.forEach(upcomingTask ->{
-            String email = upcomingTask.getAssign_to().getEmail();
-            String message = "Bonjour " + upcomingTask.getAssign_to().getUsername() + ". La deadline de la tâche : " + upcomingTask.getTitle() + " est le " + upcomingTask.getDateEcheance()
+            String email = upcomingTask.getAssignTo().getEmail();
+            String message = "Bonjour " + upcomingTask.getAssignTo().getUsername() + ". La deadline de la tâche : " + upcomingTask.getTitle() + " est le " + upcomingTask.getDateEcheance()
                     + ". Dépêchez vous de la terminer.";
             emailSenderService.sendMail(email, "Deadline de la tâche", message);
             System.out.println("Email envoyé.");
