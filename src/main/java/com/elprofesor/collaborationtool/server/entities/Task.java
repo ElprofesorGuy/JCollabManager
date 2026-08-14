@@ -45,11 +45,11 @@ public class Task {
     @CreationTimestamp
     private LocalDate creation_date;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", columnDefinition = "uuid")
     private Project project;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assign_to", columnDefinition = "uuid")
     private Users assignTo;
 
@@ -65,14 +65,14 @@ public class Task {
     @Column(name = "submission_date")
     private LocalDate submissionDate;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_task_id", columnDefinition = "uuid")
     private Task parentTask;
 
     @OneToMany(mappedBy = "parentTask")
     private Set<Task> subtasks;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "status_id")
     private WorkflowStatus status;
 

@@ -30,7 +30,6 @@ public class TaskServiceJPA implements TaskService {
     private final ProjectRepository projectRepository;
     private final TaskDependencyRepository dependencyRepository;
     private final WorkflowStatusRepository workflowStatusRepository;
-    private final WorkflowTransitionService workflowTransitionService;
     private final FileStorageService fileStorageService;
     private final static int DEFAULT_PAGE = 0;
     private final static int DEFAULT_PAGE_SIZE = 20;
@@ -103,7 +102,6 @@ public class TaskServiceJPA implements TaskService {
        WorkflowStatus workflowStatus = workflowStatusRepository.findByNameIgnoringCaseAndProject(taskRequestDTO.getWorkflowStatus(), projet).orElseThrow(()
                -> new NotFoundException("Statut inexistant"));
         //if(workflowStatus.getProject().getId().equals(projet.getId())){
-            workflowTransitionService.validateTransition(tache, workflowStatus);//S'il effectue une modifciation de statut, on vérifie si cela est possible.
             AtomicReference<Optional<TaskRequestDTO>> atomicReference = new AtomicReference<>();
             taskRepository.findById(id).ifPresentOrElse(foundTask -> {
 

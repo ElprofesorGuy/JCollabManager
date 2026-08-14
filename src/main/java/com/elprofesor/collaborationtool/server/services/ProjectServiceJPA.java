@@ -30,7 +30,6 @@ public class ProjectServiceJPA implements ProjectService {
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
     private final WorkflowStatusRepository workflowStatusRepository;
-    private final WorkflowTransitionRepository workflowTransitionRepository;
     private final WorkflowStatusMapper mapper;
     private final ProjectMembershipRepository projectMembershipRepository;
     private final ProjectMemberMapper projectMemberMapper;
@@ -98,32 +97,6 @@ public class ProjectServiceJPA implements ProjectService {
                 .build();
         projectMembershipRepository.save(newMembership);
         List<WorkflowStatus> savedStatuses = workflowStatusRepository.saveAll(List.of(defaultWorkflowStauts1, defaultWorfflowStatus2, defaultWorfflowStatus3));
-        WorkflowStatus todo = savedStatuses.get(0);
-        WorkflowStatus inProgress = savedStatuses.get(1);
-        WorkflowStatus done = savedStatuses.get(2);
-        workflowTransitionRepository.saveAll(List.of(
-                WorkflowTransition.builder()
-                        .project(projectToSave)
-                        .fromStatus(todo)
-                        .toStatus(inProgress)
-                        .name("Demarrer le travail")
-                        .requiredRole(ProjectRole.CONTRIBUTOR)
-                        .build(),
-                WorkflowTransition.builder()
-                        .project(projectToSave)
-                        .fromStatus(inProgress)
-                        .toStatus(done)
-                        .name("Terminer")
-                        .requiredRole(ProjectRole.CONTRIBUTOR)
-                        .build(),
-                WorkflowTransition.builder()
-                        .project(projectToSave)
-                        .fromStatus(done)
-                        .toStatus(inProgress)
-                        .name("Reouvrir")
-                        .requiredRole(ProjectRole.MANAGER)
-                        .build()
-        ));
         responseDTO.setManagerEmail(manager.getEmail());
         return responseDTO;
     }
@@ -157,7 +130,6 @@ public class ProjectServiceJPA implements ProjectService {
             Project deletedProject = projectRepository.findById(id).orElseThrow(()-> new NotFoundException("Project not found"));
             List<WorkflowStatus> workflowStatuses = workflowStatusRepository.findByProject_Id(id);
             projectMembershipRepository.deleteAll(deletedProject.getMemberships());
-            workflowTransitionRepository.deleteByProjectId(id);
             workflowStatusRepository.deleteAll(workflowStatuses);
             projectRepository.deleteById(id);
             return true;
