@@ -6,7 +6,7 @@ import com.elprofesor.collaborationtool.server.models.NotificationResponseDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface NotificationMapper {
     @Mapping(source = "recipientUsername", target = "destinataire.username")
     Notification notificationRequestDTOToNotification(NotificationRequestDTO notifDTO);

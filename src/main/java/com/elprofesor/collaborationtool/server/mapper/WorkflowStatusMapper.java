@@ -5,7 +5,7 @@ import com.elprofesor.collaborationtool.server.models.WorkflowStatusRequestDTO;
 import com.elprofesor.collaborationtool.server.models.WorkflowStatusResponseDTO;
 import org.mapstruct.Mapper;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface WorkflowStatusMapper {
     WorkflowStatusRequestDTO workflowStatusToWorkflowStatusRequestDTO(WorkflowStatus status);
     WorkflowStatus workflowStatusRequestDtoToWorkflowStatus(WorkflowStatusRequestDTO dto);

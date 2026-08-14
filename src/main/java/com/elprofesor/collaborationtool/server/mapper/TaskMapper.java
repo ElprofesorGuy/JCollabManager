@@ -6,7 +6,7 @@ import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface TaskMapper {
     @Mapping(source = "assignTo", target = "assignTo.username")
     Task taskRequestDtoToTask(TaskRequestDTO taskRequestDto);

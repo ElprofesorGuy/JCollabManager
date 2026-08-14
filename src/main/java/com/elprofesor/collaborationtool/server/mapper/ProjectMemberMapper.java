@@ -5,7 +5,7 @@ import com.elprofesor.collaborationtool.server.models.ProjectMemberResponseDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface ProjectMemberMapper {
 
     @Mapping(source = "user.id", target = "id")
