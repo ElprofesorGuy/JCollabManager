@@ -234,7 +234,6 @@ const ProjectDetail = () => {
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [statuses, setStatuses] = useState([]);
-  const [transitions, setTransitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
@@ -276,15 +275,12 @@ const ProjectDetail = () => {
       setProject(projectRes.data);
       const tasksRes = await api.get(`/v1/project/${id}/tasks`);
       setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
+
       try {
         const statusRes = await api.get(`/v1/projects/${id}/statuses`);
         const sorted = (Array.isArray(statusRes.data) ? statusRes.data : []).slice().sort((a, b) => a.orderIndex - b.orderIndex);
         setStatuses(sorted);
       } catch (e) { setStatuses([]); }
-      try {
-        const transitionRes = await api.get(`/v1/projects/${id}/transitions`);
-        setTransitions(Array.isArray(transitionRes.data) ? transitionRes.data : []);
-      } catch (e) { setTransitions([]); }
       try {
         const depRes = await api.get(`/v1/projects/${id}/dependencies`);
         setDependencies(Array.isArray(depRes.data) ? depRes.data : []);
@@ -313,19 +309,11 @@ const ProjectDetail = () => {
   const getStatusByName = (name) => statuses.find(s => s.name === name);
 
   const getSelectableStatuses = (task) => {
-    if (!task) return statuses;
-    const currentStatus = getStatusByName(task.workflowStatus);
-    if (!currentStatus) return statuses;
-    const allowedStatusIds = transitions
-      .filter(t => t.fromStatusId === currentStatus.id)
-      .map(t => t.toStatusId);
-    return statuses.filter(s => s.id === currentStatus.id || allowedStatusIds.includes(s.id));
+    return statuses;
   };
 
   const canMoveTaskToStatus = (task, targetStatus) => {
-    const currentStatus = getStatusByName(task.workflowStatus);
-    if (!currentStatus || currentStatus.id === targetStatus.id) return true;
-    return transitions.some(t => t.fromStatusId === currentStatus.id && t.toStatusId === targetStatus.id);
+    return true;
   };
 
   const openTaskModal = (task = null) => {

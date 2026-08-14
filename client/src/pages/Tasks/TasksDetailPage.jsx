@@ -102,15 +102,9 @@ const CATEGORY_CONFIG = {
 
 /* ─────────── EditTaskModal ─────────── */
 
-const EditTaskModal = ({ task, onClose, onSaved, statuses, transitions }) => {
+const EditTaskModal = ({ task, onClose, onSaved, statuses }) => {
   const [error, setError] = useState('');
-  const currentStatus = statuses.find(s => s.name === task.workflowStatus);
-  const allowedStatusIds = currentStatus
-    ? transitions.filter(t => t.fromStatusId === currentStatus.id).map(t => t.toStatusId)
-    : [];
-  const selectableStatuses = currentStatus
-    ? statuses.filter(s => s.id === currentStatus.id || allowedStatusIds.includes(s.id))
-    : statuses;
+  const selectableStatuses = statuses;
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(taskSchema),
     defaultValues: {
@@ -358,7 +352,6 @@ const TasksDetailPage = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [statuses, setStatuses] = useState([]);
   const [statusesByProject, setStatusesByProject] = useState({});
-  const [transitionsByProject, setTransitionsByProject] = useState({});
   const [search, setSearch] = useState('');
   const [members, setMembers] = useState({});
 
@@ -408,24 +401,20 @@ const TasksDetailPage = () => {
       // Fetch statuses & members for edit modal (per project)
       const uniqueProjectIds = [...new Set(fetched.map(t => t.projectId).filter(Boolean))];
       const statusMap = {};
-      const transitionMap = {};
       const memberMap = {};
 
       await Promise.all(uniqueProjectIds.map(async (pid) => {
         try {
-          const [sRes, tRes, mRes] = await Promise.all([
+          const [sRes, mRes] = await Promise.all([
             api.get(`/v1/projects/${pid}/statuses`),
-            api.get(`/v1/projects/${pid}/transitions`),
             api.get(`/v1/project/${pid}/members`),
           ]);
           statusMap[pid] = sRes.data || [];
-          transitionMap[pid] = tRes.data || [];
           memberMap[pid] = mRes.data || [];
         } catch { /* ignore */ }
       }));
 
       setStatusesByProject(statusMap);
-      setTransitionsByProject(transitionMap);
       setMembers(memberMap);
     } catch (err) {
       setError('Impossible de charger les tâches.');
@@ -458,7 +447,6 @@ const TasksDetailPage = () => {
   });
 
   const getStatusesForTask = (task) => statusesByProject[task.projectId] || [];
-  const getTransitionsForTask = (task) => transitionsByProject[task.projectId] || [];
 
   /* ── render ── */
   return (
@@ -540,7 +528,6 @@ const TasksDetailPage = () => {
         <EditTaskModal
           task={editingTask}
           statuses={getStatusesForTask(editingTask)}
-          transitions={getTransitionsForTask(editingTask)}
           onClose={() => setEditingTask(null)}
           onSaved={() => {
             setEditingTask(null);

@@ -91,8 +91,8 @@ const getDeadlineBadge = (parsedDate) => {
     return <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Aujourd'hui</span>;
   } else if (diffDays === 1) {
     return <span className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Demain</span>;
-  } else if (diffDays <= 7) {
-    return <span className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Sous 7j</span>;
+  } else if (diffDays > 1) {
+    return <span className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Dans {diffDays} jours</span>;
   }
   return <span className="bg-slate-800 text-slate-400 border border-slate-700 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">À Venir</span>;
 };
@@ -220,14 +220,12 @@ const Dashboard = () => {
       const start = parseTaskDate(t.dateDebut) || new Date(due.getTime() - 24*60*60*1000);
       start.setHours(0,0,0,0);
 
-      const durationDays = Math.ceil((due - start) / (1000 * 60 * 60 * 24));
       const remainingDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
-      const threshold = durationDays > 7 ? 5 : 3;
 
       return {
         ...t,
         parsedDate: due,
-        isValidUrgent: remainingDays >= 0 && remainingDays <= threshold
+        isValidUrgent: remainingDays >= 0 && remainingDays < 3
       };
     })
     .filter(t => t.isValidUrgent)
