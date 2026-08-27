@@ -49,6 +49,8 @@ const taskSchema = z.object({
   parentTaskName: z.string().optional(),
   dateDebut: z.string().optional(),
   dateEcheance: z.string().optional(),
+  sprintId: z.string().optional().nullable(),
+  storyPoints: z.coerce.number().min(0, "Les Story Points ne peuvent pas etre negatifs").optional().nullable()
 });
 
 /* ─────────── category config ─────────── */
@@ -102,7 +104,7 @@ const CATEGORY_CONFIG = {
 
 /* ─────────── EditTaskModal ─────────── */
 
-const EditTaskModal = ({ task, onClose, onSaved, statuses }) => {
+const EditTaskModal = ({ task, onClose, onSaved, statuses, sprints = [] }) => {
   const [error, setError] = useState('');
   const selectableStatuses = statuses;
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
@@ -116,6 +118,8 @@ const EditTaskModal = ({ task, onClose, onSaved, statuses }) => {
       parentTaskName: task.parentTaskName || '',
       dateDebut: task.dateDebut ? String(task.dateDebut).slice(0, 10) : '',
       dateEcheance: task.dateEcheance ? String(task.dateEcheance).slice(0, 10) : '',
+      sprintId: task.sprintId || '',
+      storyPoints: task.storyPoints || ''
     },
   });
 
@@ -131,6 +135,8 @@ const EditTaskModal = ({ task, onClose, onSaved, statuses }) => {
         parentTaskName: data.parentTaskName || '',
         dateDebut: data.dateDebut || null,
         dateEcheance: data.dateEcheance || null,
+        sprintId: data.sprintId || null,
+        storyPoints: data.storyPoints || null,
         projectName: task.projectName,
       };
       await api.put(`/v1/task/${task.id}/${task.projectId}`, payload);
@@ -237,6 +243,22 @@ const EditTaskModal = ({ task, onClose, onSaved, statuses }) => {
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Date d'échéance</label>
                 <input type="date" {...register('dateEcheance')} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm" />
+              </div>
+            </div>
+
+            {/* Sprints & Story points */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Sprint <span className="text-slate-500 font-normal">— Optionnel</span></label>
+                <select {...register("sprintId")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
+                  <option value="">-- Aucun -- (Backlog)</option>
+                  {sprints.map(s => (<option key={s.id} value={s.id}>{s.name} ({s.status})</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Story Points <span className="text-slate-500 font-normal">— Optionnel</span></label>
+                <input type="number" {...register("storyPoints")} className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.storyPoints ? "border-rose-500" : "border-[#1f293d]"}`} placeholder="Ex: 5" />
+                {errors.storyPoints && <p className="text-rose-400 text-xs mt-1">{errors.storyPoints.message}</p>}
               </div>
             </div>
 
@@ -352,6 +374,7 @@ const TasksDetailPage = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [statuses, setStatuses] = useState([]);
   const [statusesByProject, setStatusesByProject] = useState({});
+  const [sprintsByProject, setSprintsByProject] = useState({});
   const [search, setSearch] = useState('');
   const [members, setMembers] = useState({});
 
@@ -401,20 +424,24 @@ const TasksDetailPage = () => {
       // Fetch statuses & members for edit modal (per project)
       const uniqueProjectIds = [...new Set(fetched.map(t => t.projectId).filter(Boolean))];
       const statusMap = {};
+      const sprintMap = {};
       const memberMap = {};
 
       await Promise.all(uniqueProjectIds.map(async (pid) => {
         try {
-          const [sRes, mRes] = await Promise.all([
+          const [sRes, spRes, mRes] = await Promise.all([
             api.get(`/v1/projects/${pid}/statuses`),
+            api.get(`/v1/projects/${pid}/sprints`),
             api.get(`/v1/project/${pid}/members`),
           ]);
           statusMap[pid] = sRes.data || [];
+          sprintMap[pid] = spRes.data || [];
           memberMap[pid] = mRes.data || [];
         } catch { /* ignore */ }
       }));
 
       setStatusesByProject(statusMap);
+      setSprintsByProject(sprintMap);
       setMembers(memberMap);
     } catch (err) {
       setError('Impossible de charger les tâches.');
@@ -528,6 +555,7 @@ const TasksDetailPage = () => {
         <EditTaskModal
           task={editingTask}
           statuses={getStatusesForTask(editingTask)}
+          sprints={sprintsByProject[editingTask.projectId] || []}
           onClose={() => setEditingTask(null)}
           onSaved={() => {
             setEditingTask(null);
