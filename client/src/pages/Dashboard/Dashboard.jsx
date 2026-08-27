@@ -132,10 +132,10 @@ const Dashboard = () => {
             api.get('/v1/task/overduetask'),
           ]);
           setUsersList(usersRes.data || []);
-          setInProgressTasks(inProgressRes.data || []);
-          setNotStartedTasks(notStartedRes.data || []);
-          setEndedTasks(endedRes.data || []);
-          setOverdueTasks(overdueRes.data || []);
+          setInProgressTasks(inProgressRes.data?.content || inProgressRes.data || []);
+          setNotStartedTasks(notStartedRes.data?.content || notStartedRes.data || []);
+          setEndedTasks(endedRes.data?.content || endedRes.data || []);
+          setOverdueTasks(overdueRes.data?.content || overdueRes.data || []);
           setLoadingUsers(false);
         } else {
           // If normal user, fetch ONLY their specific assigned tasks counts via specific endpoints
@@ -145,10 +145,10 @@ const Dashboard = () => {
             api.get(`/v1/task/${user.id}/myEndedTasks`),
             api.get(`/v1/task/${user.id}/myOverdueTasks`),
           ]);
-          setInProgressTasks(inProgressRes.data || []);
-          setNotStartedTasks(notStartedRes.data || []);
-          setEndedTasks(endedRes.data || []);
-          setOverdueTasks(overdueRes.data || []);
+          setInProgressTasks(inProgressRes.data?.content || inProgressRes.data || []);
+          setNotStartedTasks(notStartedRes.data?.content || notStartedRes.data || []);
+          setEndedTasks(endedRes.data?.content || endedRes.data || []);
+          setOverdueTasks(overdueRes.data?.content || overdueRes.data || []);
         }
       } catch (error) {
         console.error("Erreur lors du chargement des données", error);
