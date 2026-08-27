@@ -1,16 +1,17 @@
 package com.elprofesor.collaborationtool.server.services;
 
 import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
-import com.elprofesor.collaborationtool.server.entities.Users;
 import com.elprofesor.collaborationtool.server.mapper.UserMapper;
 import com.elprofesor.collaborationtool.server.models.ProfileUpdateRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserResponseDTO;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
+import com.elprofesor.collaborationtool.server.security.CustomUserServiceDetails;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import com.elprofesor.collaborationtool.server.models.Role;
+
 
 import java.time.LocalDate;
 import java.util.List;
@@ -26,6 +27,7 @@ public class UserServiceJPA implements UserService{
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final CustomUserServiceDetails customUserDetails;
 
     @Override
     public Optional<UserResponseDTO> getUser(UUID id) {
@@ -42,16 +44,15 @@ public class UserServiceJPA implements UserService{
     }
 
     @Override
-    public UserRequestDTO saveNewUser(UserRequestDTO newUser) {
+    public UserResponseDTO saveNewUser(UserRequestDTO newUser) {
         newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
-        newUser.setRole(Role.MEMBER);
+        //newUser.setRole(SystemRole.MEMBER);
         newUser.setDate_creation(LocalDate.now());
-        return userMapper.userToUserRequestDto(userRepository.save(userMapper.userRequestDTOtoUser(newUser)));
+        return userMapper.userToUserResponseDto(userRepository.save(userMapper.userRequestDTOtoUser(newUser)));
     }
 
     @Override
     public Optional<UserResponseDTO> updateUser(UserRequestDTO existingUser, UUID userId) {
-        UserRequestDTO dto = UserRequestDTO.builder().build();
         AtomicReference<Optional<UserResponseDTO>> atomicReference = new AtomicReference<>();
         userRepository.findById(userId).ifPresentOrElse(foundUser -> {
             System.out.println("Id trouvé : " + foundUser.getId());
@@ -75,13 +76,12 @@ public class UserServiceJPA implements UserService{
     }
 
     @Override
-    public Optional<UserResponseDTO> updateProfile(ProfileUpdateRequestDTO profileRequest, UUID userId, String currentUserEmail) {
+    public Optional<UserResponseDTO> updateProfile(ProfileUpdateRequestDTO profileRequest, UUID userId, UserDetails userDetails) {
+        String currentUserEmail = customUserDetails.getCurrentUser(userDetails).getEmail();
         AtomicReference<Optional<UserResponseDTO>> atomicReference = new AtomicReference<>();
         userRepository.findById(userId).ifPresentOrElse(foundUser -> {
             // Security check: Only allow users to update their own profile (or admin, but we check email here for simplicity)
             if (!foundUser.getEmail().equals(currentUserEmail)) {
-                System.out.println("Found User email : " + foundUser.getEmail());
-                System.out.println("Current user email : " + currentUserEmail);
                 throw new SecurityException("You can only update your own profile");
             }
             
@@ -104,5 +104,11 @@ public class UserServiceJPA implements UserService{
             atomicReference.set(Optional.empty());
         });
         return atomicReference.get();
+    }
+
+    @Override
+    public Optional<UserResponseDTO> getUserByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .map(userMapper::userToUserResponseDto);
     }
 }

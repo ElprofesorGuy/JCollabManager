@@ -1,7 +1,7 @@
 package com.elprofesor.collaborationtool.server.controllers;
 
 import com.elprofesor.collaborationtool.server.entities.Users;
-import com.elprofesor.collaborationtool.server.models.Status;
+//import com.elprofesor.collaborationtool.server.models.Status;
 import com.elprofesor.collaborationtool.server.models.TaskRequestDTO;
 import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
 import com.elprofesor.collaborationtool.server.repositories.UserRepository;
@@ -25,6 +25,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class TaskController {
     private final TaskService taskService;
     private final UserRepository userRepository;
@@ -32,7 +33,7 @@ public class TaskController {
     private final String TASK_PATH_ID = TASK_PATH + "/{taskId}";
 
     @GetMapping(TASK_PATH)
-    @PreAuthorize("isAuthenticated()")
+    //@PreAuthorize("@projectSecurityServiceJPA.isProjectMember(taskRepository.findById(#taskId).get().getProject().getId())")
     @Operation(summary = "Liste des tâches", description = "Lister l'ensemble des tâches, indépendamment des projets")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter"),
@@ -41,12 +42,11 @@ public class TaskController {
     public Page<TaskResponseDTO> displayListOfTasks(@RequestParam(required = false) Integer pageNumber,
                                                     @RequestParam(required = false) Integer pageSize,
                                                     @RequestParam(required = false) String taskTitle,
-                                                    @RequestParam(required = false) Status taskStatus){
+                                                    @RequestParam(required = false) String taskStatus){
         return taskService.listOfTasks(taskTitle, taskStatus, pageNumber, pageSize);
     }
 
     /*@GetMapping(TASK_PATH)
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Liste des tâches triées par Status")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter"),
@@ -57,7 +57,7 @@ public class TaskController {
     }*/
 
     @GetMapping(TASK_PATH_ID)
-    @PreAuthorize("isAuthenticated()")
+    //@PreAuthorize("@projectSecurityServiceJPA.isProjectMember(@taskRepository.findById(#taskId).get().getProject().getId())")
     @Operation(summary = "Recherche une tâche spécifique", description = "Rechercher dans la BD une tâche particulière en fournissant sont ID.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "404", description = "Cette tâche n'existe pas."),
@@ -69,40 +69,36 @@ public class TaskController {
     }
 
     @DeleteMapping(TASK_PATH_ID)
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@projectSecurityServiceJPA.canDeleteTask(#taskId)")
     @Operation(summary = "Suppression d'une tâche", description = "Supprimer une tâche spécifique d'un projet")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentigié, veuillez d'abord vous connecter"),
             @ApiResponse(responseCode = "404", description = "Tâche inexsitante"),
             @ApiResponse(responseCode = "204", description = "Tâche supprimée")
     })
-    public ResponseEntity deleteTask(@PathVariable("taskId") UUID taskId, @AuthenticationPrincipal UserDetails userDetails){
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-        if(! taskService.deleteTask(taskId, currentUser)){
-            throw new NotFoundException();
-        }
+    public ResponseEntity deleteTask(@PathVariable("taskId") UUID taskId){
+        taskService.deleteTask(taskId);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 
     @PostMapping(TASK_PATH + "/{projectId}")
+    @PreAuthorize("@projectSecurityServiceJPA.canCreateTask(#projectId)")
     @Operation (summary = "Création d'une nouvelle tâche", description = "Créer une nouvelle tâche")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Seul le owner du projet peut ajouter une tâche une tâche."),
             @ApiResponse(responseCode = "201", description = "Tâche créée avec succès"),
             @ApiResponse(responseCode = "500", description = "Verrouillage optimiste : Le champ id doit être vide/supprimez-le.")
     })
-    public ResponseEntity saveNewTask(@PathVariable("projectId") UUID projectId, @RequestBody TaskRequestDTO taskRequestDTO, @AuthenticationPrincipal UserDetails userDetails){
+    public ResponseEntity saveNewTask(@PathVariable("projectId") UUID projectId, @RequestBody TaskRequestDTO taskRequestDTO){
 
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-        TaskResponseDTO newTask = taskService.saveNewTask(projectId, taskRequestDTO, currentUser);
+        TaskResponseDTO newTask = taskService.saveNewTask(projectId, taskRequestDTO);
         HttpHeaders header = new HttpHeaders();
         header.add("Location", "/api/v1/task/" + newTask.getId());
         return new ResponseEntity(HttpStatus.CREATED);
     }
 
-    @PutMapping(TASK_PATH_ID)
+    @PutMapping(TASK_PATH_ID + "/{projectId}")
+    @PreAuthorize("@projectSecurityServiceJPA.canUpdateTask(#projectId)")
     @Operation(summary = "Modification des informations d'une tâche ", description = "Modifier les informations d'une tâche")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié"),
@@ -110,36 +106,21 @@ public class TaskController {
             @ApiResponse(responseCode = "404", description = "Tâche inexistante, vérifiez l'identifiant de la tâche"),
             @ApiResponse(responseCode = "500", description = "Vous essayez sûrement de marquer manuellement une tâche comme OVERDUE")
     })
-    public ResponseEntity updateExistingTask(@PathVariable UUID taskId, @RequestBody TaskRequestDTO taskRequestDTO, @AuthenticationPrincipal UserDetails userDetails){
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-        if(taskService.updateTask(taskId, taskRequestDTO, currentUser).isEmpty()){
+    public ResponseEntity updateExistingTask(@PathVariable("taskId") UUID taskId, @PathVariable("projectId") UUID projectId, @RequestBody TaskRequestDTO taskRequestDTO){
+        if(taskService.updateTask(taskId, taskRequestDTO).isEmpty()){
             throw new NotFoundException();
         }
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 
-    @GetMapping(TASK_PATH + "/overdue")
-    @Operation(summary = "Liste des tâches marquées en retard", description = "Afficher la liste des tâches qui sont marquées comme étant des tâches en retard")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Liste affichée avec succès"),
-            @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, veuillez d'abord vous connecter")
-    })
-    public List<TaskResponseDTO> displayOverdueTasks(){
-        return taskService.listOverdueTask();
-    }
     @PostMapping(TASK_PATH_ID + "/upload")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Uploader une pièce jointe", description = "Permet de joindre un fichier (document, image) à une tâche.")
     public ResponseEntity<TaskResponseDTO> uploadAttachment(
             @PathVariable("taskId") UUID taskId,
-            @RequestParam("file") MultipartFile file,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-        
-        TaskResponseDTO updatedTask = taskService.uploadAttachment(taskId, file, currentUser);
+            @RequestParam("file") MultipartFile file) {
+
+        TaskResponseDTO updatedTask = taskService.uploadAttachment(taskId, file);
         return ResponseEntity.ok(updatedTask);
     }
 
@@ -147,13 +128,76 @@ public class TaskController {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Supprimer une pièce jointe", description = "Permet de supprimer le fichier attaché à une tâche.")
     public ResponseEntity<TaskResponseDTO> removeAttachment(
-            @PathVariable("taskId") UUID taskId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        Users currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-        
-        TaskResponseDTO updatedTask = taskService.removeAttachment(taskId, currentUser);
+            @PathVariable("taskId") UUID taskId) {
+
+        TaskResponseDTO updatedTask = taskService.removeAttachment(taskId);
         return ResponseEntity.ok(updatedTask);
+    }
+
+    @GetMapping(TASK_PATH + "/unachievedtask")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<TaskResponseDTO> displayUnachievedTask(){
+        return taskService.listofUnachievedTask();
+    }
+
+
+    @GetMapping(TASK_PATH + "/unstartedtask")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<TaskResponseDTO> displayUnstartedTask(){
+        return taskService.listofUnstartedTask();
+    }
+
+    @GetMapping(TASK_PATH + "/endedtask")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Liste de toutes les tâches achevées")
+    public List<TaskResponseDTO> displayEndedTask(){
+        return taskService.listofEndedTask();
+    }
+
+    @GetMapping(TASK_PATH + "/overduetask")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Liste de toutes les tâches en retard")
+    public List<TaskResponseDTO> displayOverdueTask(){
+        return taskService.listofOverdueTask();
+    }
+
+    @GetMapping(TASK_PATH + "/{userId}/myUnstartedTasks")
+    @Operation(summary = "Liste des tâches non commencées par un utilisateur spécifique")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des tâches affichée avec succès"),
+            @ApiResponse(responseCode = "403", description = "Vous n'avez pas accès à cette information")
+    })
+    public List<TaskResponseDTO> displayMyUnstartedTasks(@PathVariable("userId") UUID userId){
+        return taskService.listMyUnstartedTask(userId);
+    }
+
+    @GetMapping(TASK_PATH + "/{userId}/myUnachievedTasks")
+    @Operation(summary = "Liste des tâches en cours de traitement par un utilisateur spécifique")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des tâches affichée avec succès"),
+            @ApiResponse(responseCode = "403", description = "Vous n'avez pas accès à cette information")
+    })
+    public List<TaskResponseDTO> displayMyUnachievedTasks(@PathVariable("userId") UUID userId){
+        return taskService.listMyUnachievedTask(userId);
+    }
+
+    @GetMapping(TASK_PATH + "/{userId}/myEndedTasks")
+    @Operation(summary = "Liste des tâches achevées par un utilisateur spécifique")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des tâches affichée avec succès"),
+            @ApiResponse(responseCode = "403", description = "Vous n'avez pas accès à cette information")
+    })
+    public List<TaskResponseDTO> displayMyEndedTasks(@PathVariable("userId") UUID userId){
+        return taskService.listMyendedTask(userId);
+    }
+
+    @GetMapping(TASK_PATH + "/{userId}/myOverdueTasks")
+    @Operation(summary = "Liste des tâches en retard d'un utilisateur spécifique")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des tâches affichée avec succès"),
+            @ApiResponse(responseCode = "403", description = "Vous n'avez pas accès à cette information")
+    })
+    public List<TaskResponseDTO> displayMyOverdueTasks(@PathVariable("userId") UUID userId){
+        return taskService.listMyOverdueTask(userId);
     }
 }

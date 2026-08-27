@@ -1,26 +1,17 @@
 package com.elprofesor.collaborationtool.server.services;
 
 import com.elprofesor.collaborationtool.server.controllers.NotFoundException;
-import com.elprofesor.collaborationtool.server.entities.Project;
-import com.elprofesor.collaborationtool.server.entities.Task;
-import com.elprofesor.collaborationtool.server.entities.TaskDependency;
-import com.elprofesor.collaborationtool.server.entities.Users;
-import com.elprofesor.collaborationtool.server.mapper.TaskDependencyMapper;
+import com.elprofesor.collaborationtool.server.entities.*;
 import com.elprofesor.collaborationtool.server.mapper.TaskMapper;
-import com.elprofesor.collaborationtool.server.mapper.UserMapper;
 import com.elprofesor.collaborationtool.server.models.*;
-import com.elprofesor.collaborationtool.server.repositories.ProjectRepository;
-import com.elprofesor.collaborationtool.server.repositories.TaskDependencyRepository;
-import com.elprofesor.collaborationtool.server.repositories.TaskRepository;
-import com.elprofesor.collaborationtool.server.repositories.UserRepository;
-import jdk.jshell.Snippet;
+import com.elprofesor.collaborationtool.server.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -28,8 +19,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -37,30 +26,19 @@ public class TaskServiceJPA implements TaskService {
 
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
-    private final UserMapper userMapper;
-    private final TaskDependencyMapper taskDependencyMapper;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
     private final TaskDependencyRepository dependencyRepository;
+    private final WorkflowStatusRepository workflowStatusRepository;
     private final FileStorageService fileStorageService;
+    private final RealTimeEventService realTimeEventService;
+    private final SprintRepository sprintRepository;
     private final static int DEFAULT_PAGE = 0;
     private final static int DEFAULT_PAGE_SIZE = 20;
-    private final NotificationService notificationService;
 
     @Override
-    public TaskResponseDTO uploadAttachment(UUID taskId, MultipartFile file, Users currentUser) {
+    public TaskResponseDTO uploadAttachment(UUID taskId, MultipartFile file) {
         Task task = taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
-        Project project = task.getProject();
-        
-        // Vérification des permissions : owner ou membre assigné (ou admin)
-        // Simplifions en autorisant l'owner ou l'utilisateur assigné
-        boolean isOwner = project.getOwner().equals(currentUser);
-        boolean isAssignee = task.getAssign_to() != null && task.getAssign_to().equals(currentUser);
-        
-        if (!isOwner && !isAssignee) {
-            throw new AccessDeniedException("Seul le chef de projet ou la personne assignée peut ajouter une pièce jointe.");
-        }
-
         String fileName = fileStorageService.storeFile(file);
         task.setAttachmentUrl(fileName);
         Task savedTask = taskRepository.save(task);
@@ -69,17 +47,8 @@ public class TaskServiceJPA implements TaskService {
     }
 
     @Override
-    public TaskResponseDTO removeAttachment(UUID taskId, Users currentUser) {
+    public TaskResponseDTO removeAttachment(UUID taskId) {
         Task task = taskRepository.findById(taskId).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
-        Project project = task.getProject();
-        
-        boolean isOwner = project.getOwner().equals(currentUser);
-        boolean isAssignee = task.getAssign_to() != null && task.getAssign_to().equals(currentUser);
-        
-        if (!isOwner && !isAssignee) {
-            throw new AccessDeniedException("Seul le chef de projet ou la personne assignée peut supprimer une pièce jointe.");
-        }
-
         if (task.getAttachmentUrl() != null) {
             fileStorageService.deleteFile(task.getAttachmentUrl());
             task.setAttachmentUrl(null);
@@ -92,10 +61,9 @@ public class TaskServiceJPA implements TaskService {
     @Override
     public boolean isPredecessorsAllCompleted(Task task) {
         boolean isAllCompleted = true;
-        //Task task = taskRepository.findById(id).orElseThrow(() -> new NotFoundException("Tâche inexistante"));
         Set<TaskDependency> dependencies = dependencyRepository.findBySuccessor(task);
         for(TaskDependency item : dependencies){
-            if(!item.getPredecessor().getStatus().equals(Status.END))
+            if(!item.getPredecessor().getStatus().getCompleted())
                 isAllCompleted = false;
         }
         return isAllCompleted;
@@ -107,72 +75,76 @@ public class TaskServiceJPA implements TaskService {
     }
 
     @Override
-    public TaskResponseDTO saveNewTask(UUID projectId, TaskRequestDTO taskRequestDTO, Users currentUser) {
-        Optional<Project> projet = projectRepository.findById(projectId);
+    public TaskResponseDTO saveNewTask(UUID projectId, TaskRequestDTO taskRequestDTO) {
+        Project projet = projectRepository.findById(projectId).orElseThrow(()->
+                new NotFoundException("Projet inexistant"));
         Optional<Users> assignee = Optional.empty();
         Task taskTosave = taskMapper.taskRequestDtoToTask(taskRequestDTO);
         taskTosave.setDateDebut(taskRequestDTO.getDateDebut());
-        taskTosave.setProject(projectRepository.findByTitleContainingIgnoreCase(taskRequestDTO.getProjectName()));
-        if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {//Si la chaine assign_to n'est pas vide même après suppression des espaces
-            assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());//On récupère l'utilisateur à qui la tâche sera assignée par son email
-            if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssign_to());//On fait une recherche de l'utilisateur par son nom
-            taskTosave.setAssign_to(assignee.orElse(null));
+        taskTosave.setProject(projet);
+        if (taskRequestDTO.getAssignTo() != null && !taskRequestDTO.getAssignTo().trim().isEmpty()) {//Si la chaine assign_to n'est pas vide même après suppression des espaces
+            assignee = userRepository.findByEmail(taskRequestDTO.getAssignTo());//On récupère l'utilisateur à qui la tâche sera assignée par son email
+            taskTosave.setAssignTo(assignee.orElse(null));
 
         } else {
-            taskTosave.setAssign_to(null);
+            taskTosave.setAssignTo(null);
         }
-        if(projet.get().getOwner().equals(currentUser)){//On vérifie si l'utilisateur connecté est le chef de projet du projet dont on souhaite définir une tâche
-            if (assignee.isPresent()) {
-                projet.get().addMember(assignee.get());//Et ce n'est qu'à ce moment , on peut valider la requête et ajouter assignee comme membre de l'équipe
-                NotificationRequestDTO dto = NotificationRequestDTO.builder()
-                        .type(NotificationType.NOUVELLE_TACHE)
-                        .message("Vous avez une nouvelle tâche qui vous est assignée : " + taskRequestDTO.getTitle())
-                        .recipientUsername(assignee.get().getUsername())
-                        .targetUrl("/projects/" + projectId)
-                        .build();
-                notificationService.saveNewNotification(dto);
-                projectRepository.save(projet.get());
-            }
-            return taskMapper.taskToTaskResponseDto(taskRepository.save(taskTosave));
-        }else{
-            throw new AccessDeniedException("Seul l'owner du projet peut ajouter une nouvelle tâche au projet");
+        if (taskRequestDTO.getSprintId() != null) {
+            Sprint sprint = sprintRepository.findById(taskRequestDTO.getSprintId())
+                    .orElseThrow(() -> new NotFoundException("Sprint non trouvé"));
+            taskTosave.setSprint(sprint);
         }
+        taskTosave.setStoryPoints(taskRequestDTO.getStoryPoints());
+        
+        WorkflowStatus defaultStatus = workflowStatusRepository.findByProjectIdAndOrderIndex(projectId, 0);
+        taskTosave.setStatus(defaultStatus);
+        projectRepository.save(projet);
+
+        Task savedTask = taskRepository.save(taskTosave);
+        TaskResponseDTO responseDTO = taskMapper.taskToTaskResponseDto(savedTask);
+        
+        realTimeEventService.publishTaskEvent(
+            projectId, 
+            TaskEventDTO.builder()
+                .eventType("CREATED")
+                .projectId(projectId)
+                .task(responseDTO)
+                .timestamp(java.time.Instant.now())
+                .build()
+        );
+
+        return responseDTO;
 
     }
 
     @Override
-    public Optional<TaskRequestDTO> updateTask(UUID id, TaskRequestDTO taskRequestDTO, Users currentUser) {
+    public Optional<TaskRequestDTO> updateTask(UUID id, TaskRequestDTO taskRequestDTO) {
        Task tache = taskRepository.findById(id).orElseThrow(() -> new NotFoundException("Tâche non trouvée"));
-
         Project projet = tache.getProject();
-        if(projet.getOwner().equals(currentUser)){
+       WorkflowStatus workflowStatus = workflowStatusRepository.findByNameIgnoringCaseAndProject(taskRequestDTO.getWorkflowStatus(), projet).orElseThrow(()
+               -> new NotFoundException("Statut inexistant"));
+        //if(workflowStatus.getProject().getId().equals(projet.getId())){
             AtomicReference<Optional<TaskRequestDTO>> atomicReference = new AtomicReference<>();
             taskRepository.findById(id).ifPresentOrElse(foundTask -> {
+
                 foundTask.setTitle(taskRequestDTO.getTitle());
-                if(taskRequestDTO.getStatus().equals(Status.OVERDUE)){//On ne peut marquer manuellement une tâche comme OVERDUE
-                    throw new IllegalArgumentException("Impossible de marquer manuellement une tâche comme OVERDUE.");
-                }
-                if(tache.getStatus().equals(Status.END) && taskRequestDTO.getStatus()!= tache.getStatus()){
-                    throw new IllegalArgumentException("Cette tâche est déjà marquée comme terminé, vous ne pouvez pas modifier son statut");
 
-                }else if(tache.getStatus().equals(Status.TO_DO) && taskRequestDTO.getStatus().equals(Status.END)){
-                    throw new IllegalArgumentException("Impossible de faire passer cette de \"A faire\" à \"Terminé\" sans passer par \"En cours\"");
+                if(tache.getStatus().getCompleted() && !workflowStatus.getId().equals(tache.getStatus().getId())){
+                    foundTask.setSubmissionDate(null);
+                    foundTask.setStatus(workflowStatus);
+                } else if(tache.getStatus().getCompleted()){
+                    throw new IllegalArgumentException("Cette tâche est déjà marquée comme terminé, vous ne pouvez pas la modifier");
 
-                }else if((tache.getStatus().equals(Status.NOT_FINISH) || tache.getStatus().equals(Status.OVERDUE))
-                        && taskRequestDTO.getStatus().equals(Status.END)){
+                }else if(!tache.getStatus().getCompleted() && workflowStatus.getCompleted()){
                     if(isPredecessorsAllCompleted(tache)){
                         foundTask.setSubmissionDate(LocalDate.now());
-                        foundTask.setStatus(Status.END);
+                        foundTask.setStatus(workflowStatus);
                     }else{
-                        throw new IllegalArgumentException("Impossible de modifier la tâche : données incohérentes");
+                        throw new IllegalArgumentException("Prédécesseurs non terminés");
                     }
 
-                }else if(tache.getStatus().equals(Status.OVERDUE) && taskRequestDTO.getStatus().equals(Status.END)){
-                    foundTask.setSubmissionDate(LocalDate.now());
-                    foundTask.setStatus(Status.END);
-                }else{
-                    foundTask.setStatus(taskRequestDTO.getStatus());
                 }
+                foundTask.setStatus(workflowStatus);
                 foundTask.setDescription(taskRequestDTO.getDescription());
                 if(taskRequestDTO.getDateEcheance() != null){
                     if(taskRequestDTO.getDateEcheance().isBefore(LocalDate.now()) && !taskRequestDTO.getDateEcheance().equals(tache.getDateEcheance())){
@@ -184,52 +156,63 @@ public class TaskServiceJPA implements TaskService {
                 if(taskRequestDTO.getDateDebut() != null && taskRequestDTO.getDateDebut().isBefore(taskRequestDTO.getDateEcheance())){
                     foundTask.setDateDebut(taskRequestDTO.getDateDebut());
                 }
-                if (taskRequestDTO.getAssign_to() != null && !taskRequestDTO.getAssign_to().trim().isEmpty()) {
-                    Optional<Users> assignee = userRepository.findByEmail(taskRequestDTO.getAssign_to());
-                    if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssign_to());
-                    foundTask.setAssign_to(assignee.orElse(null));
+                if (taskRequestDTO.getAssignTo() != null && !taskRequestDTO.getAssignTo().trim().isEmpty()) {
+                    Optional<Users> assignee = userRepository.findByEmail(taskRequestDTO.getAssignTo());
+                    if(assignee.isEmpty()) assignee = userRepository.findByUsername(taskRequestDTO.getAssignTo());
+                    foundTask.setAssignTo(assignee.orElse(null));
                     if (assignee.isPresent()) {
-                        projet.addMember(assignee.get());
                         projectRepository.save(projet);
                     }
                 } else {
-                    foundTask.setAssign_to(null);
+                    foundTask.setAssignTo(null);
                 }
+                if (taskRequestDTO.getSprintId() != null) {
+                    Sprint sprint = sprintRepository.findById(taskRequestDTO.getSprintId())
+                            .orElseThrow(() -> new NotFoundException("Sprint non trouvé"));
+                    foundTask.setSprint(sprint);
+                } else {
+                    foundTask.setSprint(null);
+                }
+                foundTask.setStoryPoints(taskRequestDTO.getStoryPoints());
+                
                 Task savedTask = taskRepository.save(foundTask);
                 atomicReference.set(Optional.of(taskMapper.taskToTaskRequestDto(savedTask)));
+                
+                realTimeEventService.publishTaskEvent(
+                    projet.getId(),
+                    TaskEventDTO.builder()
+                        .eventType("UPDATED")
+                        .projectId(projet.getId())
+                        .task(taskMapper.taskToTaskResponseDto(savedTask))
+                        .timestamp(java.time.Instant.now())
+                        .build()
+                );
             }, () -> {
                 atomicReference.set(Optional.empty());
             });
             return atomicReference.get();
-        }else{
-            throw new AccessDeniedException("Seul un owner peut modifier les informations d'une tâche.");
-        }
+        //}else{
+        //    throw new IllegalArgumentException("Mauvaise opération");
+        //}
 
     }
 
     @Override
-    public Boolean deleteTask(UUID id, Users currentUser) {
-        Optional<Task> tache = taskRepository.findById(id);
-        Project projet = projectRepository.findByTitleContainingIgnoreCase(tache.get().getProject().getTitle());
-        if(projet.getOwner().equals(currentUser)){
-            if(taskRepository.existsById(id)){
-                taskRepository.deleteById(id);
-                return true;
-            }
-        }else{
-            throw new AccessDeniedException("Seul le owner du projet peut supprimer cette tâche");
-        }
-
-        return false;
-    }
-
-    @Override
-    public List<TaskResponseDTO> listOverdueTask() {
-        return taskRepository.findByDateEcheanceBeforeAndStatusNot(LocalDate.now(), Status.END)
-                .stream()
-                .map(taskMapper::taskToTaskResponseDto)
-                .collect(Collectors.toList());
-
+    public void deleteTask(UUID id) {
+        taskRepository.findById(id).ifPresent(task -> {
+            UUID projectId = task.getProject().getId();
+            taskRepository.delete(task);
+            
+            realTimeEventService.publishTaskEvent(
+                projectId,
+                TaskEventDTO.builder()
+                    .eventType("DELETED")
+                    .projectId(projectId)
+                    .task(taskMapper.taskToTaskResponseDto(task))
+                    .timestamp(java.time.Instant.now())
+                    .build()
+            );
+        });
     }
 
 
@@ -259,20 +242,101 @@ public class TaskServiceJPA implements TaskService {
     }
 
     @Override
-    public Page<TaskResponseDTO> listOfTasks(String taskTitle, Status status,Integer pageNumber, Integer pageSize) {
+    public Page<TaskResponseDTO> listOfTasks(String taskTitle, String status, Integer pageNumber, Integer pageSize) {
         Page<Task> listTasks;
         PageRequest pageRequest = buildPageRequest(pageNumber, pageSize);
-        if(StringUtils.hasText(taskTitle) && status != null){
-            listTasks = taskRepository.findByTitleIsLikeIgnoreCaseAndStatus("%" + taskTitle + "%", status, pageRequest);
-        }else if(StringUtils.hasText(taskTitle)){
+
+        WorkflowStatus workflowStatus = (status != null)
+                ? workflowStatusRepository.findByNameIgnoringCase(status).orElse(null)
+                : null;
+
+        if (StringUtils.hasText(taskTitle) && workflowStatus != null) {
+            listTasks = taskRepository.findByTitleIsLikeIgnoreCaseAndStatus("%" + taskTitle + "%", workflowStatus, pageRequest);
+        } else if (StringUtils.hasText(taskTitle)) {
             listTasks = taskRepository.findByTitleIsLikeIgnoreCase("%" + taskTitle + "%", pageRequest);
-        }else if(status != null){
-            listTasks = taskRepository.findByStatus(status, pageRequest);
-        }else{
+        } else if (workflowStatus != null) {
+            listTasks = taskRepository.findAllByStatus(workflowStatus, pageRequest);
+        } else {
             listTasks = taskRepository.findAll(pageRequest);
         }
 
         return listTasks.map(taskMapper::taskToTaskResponseDto);
+    }
+
+    @Override
+    public List<TaskResponseDTO> listofUnachievedTask(){
+        List<WorkflowStatus> unachiedevStatuses = workflowStatusRepository.findAllByOrderIndexNotAndCompletedFalse(0);
+        return taskRepository.findByStatusIn(unachiedevStatuses).stream()
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+
+    }
+
+    @Override
+    public List<TaskResponseDTO> listofUnstartedTask(){
+        List<WorkflowStatus> unstartedStatuses = workflowStatusRepository.findAllByOrderIndex(0);
+        return taskRepository.findByStatusIn(unstartedStatuses).stream()
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listMyUnstartedTask(UUID userId){
+        List<Task> myTasks = taskRepository.findAllByAssignToId(userId);
+        return myTasks.stream()
+                .filter(task -> task.getStatus() != null && task.getStatus().getOrderIndex() == 0)
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listMyUnachievedTask(UUID userId){
+        List<Task> myTasks = taskRepository.findAllByAssignToId(userId);
+        return myTasks.stream()
+                .filter(task -> task.getStatus() != null && task.getStatus().getOrderIndex() != 0 && !task.getStatus().getCompleted())
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listMyendedTask(UUID userId){
+        List<Task> myTasks = taskRepository.findAllByAssignToId(userId);
+        return myTasks.stream()
+                .filter(task -> task.getStatus() != null && task.getStatus().getCompleted())
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listMyOverdueTask(UUID userId){
+        List<Task> myTasks = taskRepository.findAllByAssignToId(userId);
+        return myTasks.stream()
+                .filter(task -> task.getDateEcheance() != null && task.getDateEcheance().isBefore(LocalDate.now()) && (task.getStatus() == null || !task.getStatus().getCompleted()))
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listofEndedTask(){
+        return taskRepository.findAll().stream()
+                .filter(task -> task.getStatus() != null && task.getStatus().getCompleted())
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listofOverdueTask(){
+        return taskRepository.findAll().stream()
+                .filter(task -> task.getDateEcheance() != null && task.getDateEcheance().isBefore(LocalDate.now()) && (task.getStatus() == null || !task.getStatus().getCompleted()))
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponseDTO> listMyTasks(UUID userId){
+        return taskRepository.findAllByAssignToId(userId).stream()
+                .map(taskMapper::taskToTaskResponseDto)
+                .toList();
     }
 
 

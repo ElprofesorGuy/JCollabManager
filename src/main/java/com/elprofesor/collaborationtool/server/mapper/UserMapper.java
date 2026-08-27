@@ -5,7 +5,7 @@ import com.elprofesor.collaborationtool.server.models.UserRequestDTO;
 import com.elprofesor.collaborationtool.server.models.UserResponseDTO;
 import org.mapstruct.Mapper;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface UserMapper {
     Users userResponseDtoToUser(UserResponseDTO userResponseDTO);
     UserResponseDTO userToUserResponseDto(Users user);

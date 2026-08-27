@@ -11,6 +11,6 @@ public class ProjectResponseDTO {
     private UUID id;
     private String title;
     private String description;
-    private String ownerEmail;
-    private String ownerName;
+    private String managerEmail;
+    //private String managerName;
 }

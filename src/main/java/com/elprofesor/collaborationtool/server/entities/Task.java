@@ -1,7 +1,8 @@
 package com.elprofesor.collaborationtool.server.entities;
 
 
-import com.elprofesor.collaborationtool.server.models.Status;
+
+import com.elprofesor.collaborationtool.server.models.TaskType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -10,7 +11,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDate;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -28,16 +28,12 @@ public class Task {
     @EqualsAndHashCode.Include
     private UUID id;
 
-    @Column(length = 50)
-    @Size(max = 50)
+    @Column(length = 150)
+    @Size(max = 150)
     private String title;
 
     @NotNull
     private String description;
-
-    @Enumerated (EnumType.STRING)
-    @Column(nullable = false)
-    private Status status;
     
     @Column(name = "attachment_url")
     private String attachmentUrl;
@@ -49,13 +45,13 @@ public class Task {
     @CreationTimestamp
     private LocalDate creation_date;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", columnDefinition = "uuid")
     private Project project;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assign_to", columnDefinition = "uuid")
-    private Users assign_to;
+    private Users assignTo;
 
     @Column(name = "date_debut")
     private LocalDate dateDebut;
@@ -69,5 +65,25 @@ public class Task {
     @Column(name = "submission_date")
     private LocalDate submissionDate;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_task_id", columnDefinition = "uuid")
+    private Task parentTask;
+
+    @OneToMany(mappedBy = "parentTask")
+    private Set<Task> subtasks;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "status_id")
+    private WorkflowStatus status;
+
+    @Enumerated(EnumType.STRING)
+    private TaskType taskType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sprint_id")
+    private Sprint sprint;
+
+    @Column(name = "story_points")
+    private Integer storyPoints;
 
 }

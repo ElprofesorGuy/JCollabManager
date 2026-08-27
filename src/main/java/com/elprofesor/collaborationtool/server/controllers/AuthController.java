@@ -24,7 +24,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-public class AuthController {
+public class  AuthController {
     private final AuthService authService;
     private final EmailSenderService emailSenderService;
     private final UserRepository userRepository;

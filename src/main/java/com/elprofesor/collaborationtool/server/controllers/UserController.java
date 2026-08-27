@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class UserController {
 
     private final UserService userService;
@@ -29,7 +31,6 @@ public class UserController {
     private final String USER_PATH_ID = "/api/v1/user/{userId}";
 
     @GetMapping(USER_PATH)
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Affichage de la liste d'utilisateurs", description = "Afficher la liste de tous les membres de l'équipe de projet y compris l'admin.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, aucune opération permise.")
@@ -39,7 +40,6 @@ public class UserController {
     }
 
     @GetMapping(USER_PATH_ID)
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Rechercher un projet spécifique", description = "Recherche dans la BD un utilisateur spécifique via son UUID.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "403", description = "Utilisateur non authentifié, aucune opération permise."),
@@ -50,15 +50,15 @@ public class UserController {
     }
 
     @PostMapping(USER_PATH)
-    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Créer un utilisateur", description="Crée un utilisateur qui représente un membre de l'équipe de projet.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Utilisé créé avec succès."),
             @ApiResponse(responseCode = "403", description = "Opération non autorisée, seul un admin peut créer un nouvel utilisateur"),
-            @ApiResponse(responseCode = "500", description = "Verrouillage optimiste : une autre transaction tente d'effectuer une modification")
+            @ApiResponse(responseCode = "500", description = "Verrouillage optimiste : objet supprimé ou en cours de modification par une autre transaction"),
+            @ApiResponse(responseCode = "400", description = "L'une des informations fournies est erronée")
     })
     public ResponseEntity saveNewUser(@RequestBody UserRequestDTO userRequestDTO){
-        UserRequestDTO newUser = userService.saveNewUser(userRequestDTO);
+        UserResponseDTO newUser = userService.saveNewUser(userRequestDTO);
         HttpHeaders header = new HttpHeaders();
         header.add("Location", "/api/v1/user/" + newUser.getId());
         return new ResponseEntity(header, HttpStatus.CREATED);
@@ -80,7 +80,7 @@ public class UserController {
     }
 
     @PutMapping(USER_PATH_ID)
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Mettre à jour un utilisateur", description = "Met à jour les données et renvoie un statut 204 si réussi.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Utilisateur mis à jour"),
@@ -94,25 +94,30 @@ public class UserController {
     }
 
     @PutMapping(USER_PATH_ID + "/profile")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('MEMBER')")
     @Operation(summary = "Mettre à jour son propre profil", description = "Met à jour le profil de l'utilisateur connecté.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Profil mis à jour avec succès"),
             @ApiResponse(responseCode = "403", description = "Vous ne pouvez mettre à jour que votre propre profil"),
             @ApiResponse(responseCode = "404", description = "Utilisateur non trouvé")
     })
-    public ResponseEntity<UserResponseDTO> updateProfile(@RequestBody ProfileUpdateRequestDTO profileRequest, @PathVariable("userId") UUID userId){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserEmail = authentication.getName();
-        
-        try {
-            return userService.updateProfile(profileRequest, userId, currentUserEmail)
+    public ResponseEntity<UserResponseDTO> updateProfile(@RequestBody ProfileUpdateRequestDTO profileRequest, @PathVariable("userId") UUID userId, UserDetails userDetails){
+            return userService.updateProfile(profileRequest, userId, userDetails)
                     .map(ResponseEntity::ok)
                     .orElseThrow(NotFoundException::new);
-        } catch (SecurityException e) {
-            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-        } catch (IllegalArgumentException e) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    }
+
+    @GetMapping("/api/v1/user/me")
+    @Operation(summary = "Utilisateur courant", description = "Retourne les données de l'utilisateur connecté via le cookie JWT.")
+    public ResponseEntity<UserResponseDTO> getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
         }
+        String username = authentication.getName();
+        return userService.getUserByUsername(username)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(404).build());
     }
 }
+

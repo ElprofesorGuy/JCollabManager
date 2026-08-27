@@ -1,8 +1,12 @@
 package com.elprofesor.collaborationtool.server.models;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
 
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class LoginRequestDTO {
     private String username;
     private String password;

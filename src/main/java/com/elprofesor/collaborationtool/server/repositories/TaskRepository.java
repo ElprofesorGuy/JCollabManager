@@ -1,9 +1,10 @@
 package com.elprofesor.collaborationtool.server.repositories;
 
 import com.elprofesor.collaborationtool.server.entities.Task;
-import com.elprofesor.collaborationtool.server.models.Status;
+import com.elprofesor.collaborationtool.server.entities.WorkflowStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -12,19 +13,28 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, UUID> {
+    
+    @EntityGraph(attributePaths = {"project", "assignTo", "status"})
     Optional<Task> findByTitleContainingIgnoreCase(String title);
+    
+    @EntityGraph(attributePaths = {"project", "assignTo", "status"})
+    List<Task> findAllByStatus(WorkflowStatus taskStatus);
+    
+    @EntityGraph(attributePaths = {"project", "assignTo", "status"})
+    List<Task> findByDateEcheanceBetweenAndStatus_CompletedFalse(LocalDate startDate, LocalDate deadline);
 
-    //Retourne la liste des tâches qui dont l'échéance est atteinte et qui n'ont pas
-    //encore été terminées.
-    List<Task> findByDateEcheanceBeforeAndStatusNot(LocalDate date, Status taskStatus);
-
-    List<Task> findByStatus(Status taskStatus);
-
-    List<Task> findByDateEcheanceBetweenAndStatusNot(LocalDate start, LocalDate deadline, Status status);
-
+    @EntityGraph(attributePaths = {"project", "assignTo", "status"})
     Page<Task> findByTitleIsLikeIgnoreCase(String taskTitle, Pageable pageable);
 
-    Page<Task> findByStatus(Status status, Pageable pageable);
+    @EntityGraph(attributePaths = {"project", "assignTo", "status"})
+    Page<Task> findAllByStatus(WorkflowStatus status, Pageable pageable);
 
-    Page<Task> findByTitleIsLikeIgnoreCaseAndStatus(String taskTitle, Status status, Pageable pageable);
+    @EntityGraph(attributePaths = {"project", "assignTo", "status"})
+    Page<Task> findByTitleIsLikeIgnoreCaseAndStatus(String taskTitle, WorkflowStatus status, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"project", "assignTo", "status"})
+    List<Task> findByStatusIn(List<WorkflowStatus> statuses);
+
+    @EntityGraph(attributePaths = {"project", "assignTo", "status"})
+    List<Task> findAllByAssignToId(UUID userId);
 }

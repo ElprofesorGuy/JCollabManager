@@ -6,7 +6,7 @@ import com.elprofesor.collaborationtool.server.models.TaskDependencyResponseDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface TaskDependencyMapper {
 
     @Mapping(source = "predecessorId", target = "predecessor.id")

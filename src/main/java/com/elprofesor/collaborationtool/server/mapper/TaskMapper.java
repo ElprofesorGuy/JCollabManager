@@ -6,19 +6,29 @@ import com.elprofesor.collaborationtool.server.models.TaskResponseDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface TaskMapper {
-    @Mapping(source = "assign_to", target = "assign_to.username")
+    @Mapping(source = "assignTo", target = "assignTo.username")
     Task taskRequestDtoToTask(TaskRequestDTO taskRequestDto);
 
-    @Mapping(source = "assign_to.email", target = "assign_to")
+    @Mapping(source = "assignTo.email", target = "assignTo")
+    @Mapping(source = "status.name", target = "workflowStatus")
+    @Mapping(source = "sprint.id", target = "sprintId")
     TaskRequestDTO taskToTaskRequestDto(Task task);
 
-    @Mapping(source = "assign_to", target = "assign_to.email")
+    @Mapping(source = "assignTo", target = "assignTo.email")
     @Mapping(source = "projectName", target = "project.title")
+    @Mapping(source = "parentTaskName", target = "parentTask.title")
+    @Mapping(source = "workflowStatus", target = "status.name")
+    @Mapping(source = "sprintId", target = "sprint.id")
     Task taskResponseDtoToTask(TaskResponseDTO taskResponseDTO);
 
-    @Mapping(source = "assign_to.email", target = "assign_to")
+    @Mapping(source = "assignTo.email", target = "assignTo")
+    @Mapping(source = "project.id", target = "projectId")
     @Mapping(source = "project.title", target = "projectName")
+    @Mapping(source = "parentTask.title", target = "parentTaskName")
+    @Mapping(source = "status.name", target = "workflowStatus")
+    @Mapping(source = "status.completed", target = "isCompleted")
+    @Mapping(source = "sprint.id", target = "sprintId")
     TaskResponseDTO taskToTaskResponseDto(Task task);
 }

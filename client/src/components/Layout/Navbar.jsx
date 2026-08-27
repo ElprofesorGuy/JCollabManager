@@ -57,15 +57,7 @@ const Navbar = () => {
         <div className="flex items-center gap-5">
           {isAuthenticated ? (
             <>
-              <div className="flex items-center gap-6 mr-4 text-sm font-semibold text-slate-300">
-                <Link to="/dashboard" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] transition-all">Tableau de bord</Link>
-                <Link to="/projects" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] transition-all">Projets</Link>
-                {user?.role === 'ADMIN' && (
-                  <Link to="/users" className="hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] transition-all">Utilisateurs</Link>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-4 border-l border-[#1f293d] pl-4 relative">
+              <div className="flex items-center gap-4 relative">
                 {/* Notification Bell */}
                 <button 
                   onClick={() => setIsNotifOpen(!isNotifOpen)}

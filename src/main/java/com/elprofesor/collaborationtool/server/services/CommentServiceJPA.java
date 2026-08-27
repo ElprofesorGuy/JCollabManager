@@ -46,7 +46,7 @@ public class CommentServiceJPA implements CommentService {
                 .build();
         NotificationRequestDTO dto = NotificationRequestDTO.builder()
                 .message("Un nouveau commentaire a été fait sur une de vos tâches")
-                .recipientUsername(task.getAssign_to().getUsername())
+                .recipientUsername(task.getAssignTo().getUsername())
                 .type(NotificationType.COMMENTAIRE_AJOUTE)
                 .targetUrl("/projects/" + task.getProject().getId())
                 .build();
@@ -79,7 +79,7 @@ public class CommentServiceJPA implements CommentService {
         Users currentUser = userRepository.findByUsername(authorEmail).orElseThrow(NotFoundException::new);
         
         // Only author or admin can delete a comment
-        if (!comment.getAuthor().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+        if (!comment.getAuthor().getId().equals(currentUser.getId()) && currentUser.getRole() != SystemRole.ADMIN) {
             throw new SecurityException("Not authorized to delete this comment");
         }
 
@@ -93,7 +93,7 @@ public class CommentServiceJPA implements CommentService {
         Users currentUser = userRepository.findByUsername(userEmail).orElseThrow(NotFoundException::new);
 
         //Only author or admin can modify a comment
-        if (!comment.getAuthor().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+        if (!comment.getAuthor().getId().equals(currentUser.getId()) && currentUser.getRole() != SystemRole.ADMIN) {
             throw new SecurityException("Not authorized to modify this comment");
         }
         comment.setText(newComment.getText());
