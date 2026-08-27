@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Plus, Search, Loader2, AlertCircle } from 'lucide-react';
+import { Layers, Plus, Search, Loader2, AlertCircle, ListTodo, AlignLeft, ArrowRight } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,6 +20,7 @@ const ProjectList = () => {
   const [activeTab, setActiveTab] = useState('all'); // 'all' ou 'mine'
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [viewStyle, setViewStyle] = useState('cards'); // 'cards' | 'table'
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(projectSchema)
@@ -84,7 +85,7 @@ const ProjectList = () => {
 
       {error && <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-sm">{error}</div>}
 
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col md:flex-row gap-4 items-center">
         <div className="flex bg-[#121824]/60 border border-[#1f293d] p-1 rounded-xl w-fit">
           <button 
             onClick={() => setActiveTab('all')}
@@ -109,26 +110,95 @@ const ProjectList = () => {
             className="w-full focus:outline-none text-slate-200 bg-transparent text-sm placeholder-slate-500"
           />
         </div>
+        {/* Vue toggle */}
+        <div className="flex items-center gap-1 bg-[#121824]/60 border border-[#1f293d] p-1 rounded-xl shrink-0">
+          <button
+            onClick={() => setViewStyle('cards')}
+            title="Vue Cartes"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewStyle === 'cards' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+          >
+            <AlignLeft className="w-3.5 h-3.5" /> Cartes
+          </button>
+          <button
+            onClick={() => setViewStyle('table')}
+            title="Vue Tableau"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewStyle === 'table' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+          >
+            <ListTodo className="w-3.5 h-3.5" /> Tableau
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProjects.map(project => (
-          <Link key={project.id} to={`/projects/${project.id}`} className="block group">
-            <div className="glass-card glass-card-hover p-6 h-full flex flex-col">
-              <div className="w-12 h-12 rounded-xl bg-primary-500/10 text-primary-400 flex items-center justify-center mb-5 group-hover:bg-primary-600 group-hover:text-white transition-colors">
-                <Layers className="w-6 h-6" />
+      {viewStyle === 'cards' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProjects.map(project => (
+            <Link key={project.id} to={`/projects/${project.id}`} className="block group">
+              <div className="glass-card glass-card-hover p-6 h-full flex flex-col">
+                <div className="w-12 h-12 rounded-xl bg-primary-500/10 text-primary-400 flex items-center justify-center mb-5 group-hover:bg-primary-600 group-hover:text-white transition-colors">
+                  <Layers className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-200 mb-2 group-hover:text-white transition-colors">{project.title}</h3>
+                <p className="text-slate-400 text-sm line-clamp-3 mb-5 flex-grow leading-relaxed">{project.description}</p>
+                <div className="mt-auto pt-4 border-t border-[#1f293d]/50 flex justify-between items-center text-xs text-slate-500 font-semibold">
+                  <span>Chef : {project.managerName || project.managerEmail || 'Inconnu'}</span>
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-slate-200 mb-2 group-hover:text-white transition-colors">{project.title}</h3>
-              <p className="text-slate-400 text-sm line-clamp-3 mb-5 flex-grow leading-relaxed">{project.description}</p>
-              <div className="mt-auto pt-4 border-t border-[#1f293d]/50 flex justify-between items-center text-xs text-slate-500 font-semibold">
-                <span>Chef : {project.managerName || project.managerEmail || 'Inconnu'}</span>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-[#121824]/30 border border-[#1f293d] rounded-2xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[#1f293d] bg-[#121824]/60">
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Projet</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Description</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Chef de projet</th>
+                <th className="w-10 px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProjects.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-center py-12 text-slate-500 text-sm">Aucun projet trouvé.</td>
+                </tr>
+              ) : (
+                filteredProjects.map((project, idx) => (
+                  <tr
+                    key={project.id}
+                    className={`border-b border-[#1f293d]/60 hover:bg-[#1f293d]/40 transition-colors ${idx % 2 === 0 ? '' : 'bg-[#121824]/20'}`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary-500/10 text-primary-400 flex items-center justify-center shrink-0">
+                          <Layers className="w-4 h-4" />
+                        </div>
+                        <span className="font-semibold text-slate-200">{project.title}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 text-xs max-w-xs">
+                      <span className="line-clamp-2">{project.description || '—'}</span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">
+                      {project.managerName || project.managerEmail || 'Inconnu'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link
+                        to={`/projects/${project.id}`}
+                        className="flex items-center gap-1 text-xs font-semibold text-primary-400 hover:text-primary-300 transition-colors"
+                      >
+                        Voir <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {filteredProjects.length === 0 && !loading && (
+      {filteredProjects.length === 0 && !loading && viewStyle === 'cards' && (
         <div className="text-center py-16 glass-card border-dashed border-[#1f293d] rounded-2xl">
           <Layers className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <p className="text-slate-400 font-medium">Aucun projet trouvé.</p>
