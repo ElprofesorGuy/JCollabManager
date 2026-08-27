@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/Layout/Navbar';
+import Sidebar from './components/Layout/Sidebar';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import ForgotPassword from './pages/Auth/ForgotPassword';
@@ -13,6 +14,7 @@ import ProjectDetail from './pages/Projects/ProjectDetail';
 import UserManagement from './pages/Users/UserManagement';
 import Profile from './pages/Profile/Profile';
 import TasksDetailPage from './pages/Tasks/TasksDetailPage';
+import TaskDetails from './pages/Tasks/TaskDetails';
 import { Toaster } from 'react-hot-toast';
 import useAuthStore from './store/useAuthStore';
 import api from './api/axiosConfig';
@@ -30,7 +32,7 @@ function App() {
         const res = await api.get('/v1/auth/login');
         setUser(res.data);
       } catch {
-        // Cookie absent or expired → clear store
+        // Cookie absent or expired ' clear store
         logout();
       } finally {
         setInitializing(false);
@@ -52,10 +54,12 @@ function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <Toaster position="top-right" />
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a0e17] via-[#0f172a] to-[#020617] text-slate-100">
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a0e17] via-[#0f172a] to-[#020617] text-slate-100 overflow-hidden">
           <Navbar />
-          <main className="flex-grow container mx-auto px-4 py-8">
-            <ErrorBoundary>
+          <div className="flex-1 flex overflow-hidden">
+            {isAuthenticated && <Sidebar />}
+            <main className="flex-1 overflow-y-auto p-4 sm:p-8">
+              <ErrorBoundary>
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
@@ -77,6 +81,12 @@ function App() {
                 <Route path="/projects/:id" element={
                   <ProtectedRoute>
                     <ProjectDetail />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/projects/:projectId/tasks/:taskId" element={
+                  <ProtectedRoute>
+                    <TaskDetails />
                   </ProtectedRoute>
                 } />
 
@@ -103,7 +113,8 @@ function App() {
                 <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
               </Routes>
             </ErrorBoundary>
-          </main>
+            </main>
+          </div>
         </div>
       </BrowserRouter>
     </ErrorBoundary>
