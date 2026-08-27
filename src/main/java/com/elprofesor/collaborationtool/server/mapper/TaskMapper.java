@@ -13,12 +13,14 @@ public interface TaskMapper {
 
     @Mapping(source = "assignTo.email", target = "assignTo")
     @Mapping(source = "status.name", target = "workflowStatus")
+    @Mapping(source = "sprint.id", target = "sprintId")
     TaskRequestDTO taskToTaskRequestDto(Task task);
 
     @Mapping(source = "assignTo", target = "assignTo.email")
     @Mapping(source = "projectName", target = "project.title")
     @Mapping(source = "parentTaskName", target = "parentTask.title")
     @Mapping(source = "workflowStatus", target = "status.name")
+    @Mapping(source = "sprintId", target = "sprint.id")
     Task taskResponseDtoToTask(TaskResponseDTO taskResponseDTO);
 
     @Mapping(source = "assignTo.email", target = "assignTo")
@@ -27,5 +29,6 @@ public interface TaskMapper {
     @Mapping(source = "parentTask.title", target = "parentTaskName")
     @Mapping(source = "status.name", target = "workflowStatus")
     @Mapping(source = "status.completed", target = "isCompleted")
+    @Mapping(source = "sprint.id", target = "sprintId")
     TaskResponseDTO taskToTaskResponseDto(Task task);
 }

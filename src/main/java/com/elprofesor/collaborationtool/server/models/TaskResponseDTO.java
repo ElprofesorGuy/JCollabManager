@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDate;
 import java.util.UUID;
+import java.util.Set;
 
 @Builder
 @Data
@@ -27,4 +28,10 @@ public class TaskResponseDTO {
     private String parentTaskName;
     private String workflowStatus;
     private Boolean isCompleted;
+    private Set<TaskDependencyResponseDTO> predecessorDependencies;
+    private Set<TaskDependencyResponseDTO> successorDependencies;
+    private Set<TaskResponseDTO> subtasks;
+    
+    private UUID sprintId;
+    private Integer storyPoints;
 }

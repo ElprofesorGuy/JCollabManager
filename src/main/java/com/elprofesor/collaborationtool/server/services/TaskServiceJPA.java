@@ -31,6 +31,8 @@ public class TaskServiceJPA implements TaskService {
     private final TaskDependencyRepository dependencyRepository;
     private final WorkflowStatusRepository workflowStatusRepository;
     private final FileStorageService fileStorageService;
+    private final RealTimeEventService realTimeEventService;
+    private final SprintRepository sprintRepository;
     private final static int DEFAULT_PAGE = 0;
     private final static int DEFAULT_PAGE_SIZE = 20;
 
@@ -87,11 +89,31 @@ public class TaskServiceJPA implements TaskService {
         } else {
             taskTosave.setAssignTo(null);
         }
+        if (taskRequestDTO.getSprintId() != null) {
+            Sprint sprint = sprintRepository.findById(taskRequestDTO.getSprintId())
+                    .orElseThrow(() -> new NotFoundException("Sprint non trouvé"));
+            taskTosave.setSprint(sprint);
+        }
+        taskTosave.setStoryPoints(taskRequestDTO.getStoryPoints());
+        
         WorkflowStatus defaultStatus = workflowStatusRepository.findByProjectIdAndOrderIndex(projectId, 0);
         taskTosave.setStatus(defaultStatus);
         projectRepository.save(projet);
 
-        return taskMapper.taskToTaskResponseDto(taskRepository.save(taskTosave));
+        Task savedTask = taskRepository.save(taskTosave);
+        TaskResponseDTO responseDTO = taskMapper.taskToTaskResponseDto(savedTask);
+        
+        realTimeEventService.publishTaskEvent(
+            projectId, 
+            TaskEventDTO.builder()
+                .eventType("CREATED")
+                .projectId(projectId)
+                .task(responseDTO)
+                .timestamp(java.time.Instant.now())
+                .build()
+        );
+
+        return responseDTO;
 
     }
 
@@ -144,8 +166,27 @@ public class TaskServiceJPA implements TaskService {
                 } else {
                     foundTask.setAssignTo(null);
                 }
+                if (taskRequestDTO.getSprintId() != null) {
+                    Sprint sprint = sprintRepository.findById(taskRequestDTO.getSprintId())
+                            .orElseThrow(() -> new NotFoundException("Sprint non trouvé"));
+                    foundTask.setSprint(sprint);
+                } else {
+                    foundTask.setSprint(null);
+                }
+                foundTask.setStoryPoints(taskRequestDTO.getStoryPoints());
+                
                 Task savedTask = taskRepository.save(foundTask);
                 atomicReference.set(Optional.of(taskMapper.taskToTaskRequestDto(savedTask)));
+                
+                realTimeEventService.publishTaskEvent(
+                    projet.getId(),
+                    TaskEventDTO.builder()
+                        .eventType("UPDATED")
+                        .projectId(projet.getId())
+                        .task(taskMapper.taskToTaskResponseDto(savedTask))
+                        .timestamp(java.time.Instant.now())
+                        .build()
+                );
             }, () -> {
                 atomicReference.set(Optional.empty());
             });
@@ -158,7 +199,20 @@ public class TaskServiceJPA implements TaskService {
 
     @Override
     public void deleteTask(UUID id) {
-        taskRepository.deleteById(id);
+        taskRepository.findById(id).ifPresent(task -> {
+            UUID projectId = task.getProject().getId();
+            taskRepository.delete(task);
+            
+            realTimeEventService.publishTaskEvent(
+                projectId,
+                TaskEventDTO.builder()
+                    .eventType("DELETED")
+                    .projectId(projectId)
+                    .task(taskMapper.taskToTaskResponseDto(task))
+                    .timestamp(java.time.Instant.now())
+                    .build()
+            );
+        });
     }
 
 

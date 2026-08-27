@@ -5,11 +5,11 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDate;
 import java.util.Objects;
+import java.util.UUID;
 
 
 @Builder
 public class TaskRequestDTO {
-    //private String projectName;
     private String title;
     private String description;
     private String assignTo;
@@ -22,7 +22,8 @@ public class TaskRequestDTO {
     private String workflowStatus;
     private String taskType;
     private String parentTaskName;
-
+    private UUID sprintId;
+    private Integer storyPoints;
 
     public String getTitle() {
         return title;
@@ -96,11 +97,27 @@ public class TaskRequestDTO {
         this.parentTaskName = parentTaskName;
     }
 
+    public UUID getSprintId() {
+        return sprintId;
+    }
+
+    public void setSprintId(UUID sprintId) {
+        this.sprintId = sprintId;
+    }
+
+    public Integer getStoryPoints() {
+        return storyPoints;
+    }
+
+    public void setStoryPoints(Integer storyPoints) {
+        this.storyPoints = storyPoints;
+    }
+
     @Override
     public final boolean equals(Object o) {
         if (!(o instanceof TaskRequestDTO that)) return false;
 
-        return Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && Objects.equals(getAssignTo(), that.getAssignTo()) && Objects.equals(getAttachmentUrl(), that.getAttachmentUrl()) && Objects.equals(getDateEcheance(), that.getDateEcheance()) && Objects.equals(getDateDebut(), that.getDateDebut()) && Objects.equals(getWorkflowStatus(), that.getWorkflowStatus()) && Objects.equals(getTaskType(), that.getTaskType()) && Objects.equals(getParentTaskName(), that.getParentTaskName());
+        return Objects.equals(getTitle(), that.getTitle()) && Objects.equals(getDescription(), that.getDescription()) && Objects.equals(getAssignTo(), that.getAssignTo()) && Objects.equals(getAttachmentUrl(), that.getAttachmentUrl()) && Objects.equals(getDateEcheance(), that.getDateEcheance()) && Objects.equals(getDateDebut(), that.getDateDebut()) && Objects.equals(getWorkflowStatus(), that.getWorkflowStatus()) && Objects.equals(getTaskType(), that.getTaskType()) && Objects.equals(getParentTaskName(), that.getParentTaskName()) && Objects.equals(getSprintId(), that.getSprintId()) && Objects.equals(getStoryPoints(), that.getStoryPoints());
     }
 
     @Override
@@ -114,6 +131,8 @@ public class TaskRequestDTO {
         result = 31 * result + Objects.hashCode(getWorkflowStatus());
         result = 31 * result + Objects.hashCode(getTaskType());
         result = 31 * result + Objects.hashCode(getParentTaskName());
+        result = 31 * result + Objects.hashCode(getSprintId());
+        result = 31 * result + Objects.hashCode(getStoryPoints());
         return result;
     }
 
@@ -129,6 +148,8 @@ public class TaskRequestDTO {
                 ", workflowStatus='" + workflowStatus + '\'' +
                 ", taskType='" + taskType + '\'' +
                 ", parentTaskName='" + parentTaskName + '\'' +
+                ", sprintId=" + sprintId +
+                ", storyPoints=" + storyPoints +
                 '}';
     }
 }

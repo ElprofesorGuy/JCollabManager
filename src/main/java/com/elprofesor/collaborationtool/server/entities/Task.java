@@ -79,5 +79,11 @@ public class Task {
     @Enumerated(EnumType.STRING)
     private TaskType taskType;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sprint_id")
+    private Sprint sprint;
+
+    @Column(name = "story_points")
+    private Integer storyPoints;
 
 }
