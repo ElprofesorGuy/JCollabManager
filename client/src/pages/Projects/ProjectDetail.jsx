@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { Layers, ArrowLeft, Plus, Loader2, Users, User, Trash2, UserPlus, AlertCircle, Edit2, AlertTriangle, Calendar, Paperclip, Download, Upload, CheckCircle, Pencil, Check, X } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 import api from "../../api/axiosConfig";
@@ -10,7 +10,8 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import TaskComments from "./TaskComments";
 import GanttView from "../../components/GanttView";
-import { AlignLeft, Network } from "lucide-react";
+import BacklogView from "./BacklogView";
+import { AlignLeft, Network, ListTodo } from "lucide-react";
 
 const taskSchema = z.object({
   title: z.string().min(3, "Le titre doit faire au moins 3 caracteres"),
@@ -20,7 +21,9 @@ const taskSchema = z.object({
   taskType: z.enum(["EPIC", "STORY", "TASK", "SUBTASK"]).optional(),
   parentTaskName: z.string().optional(),
   dateDebut: z.string().optional(),
-  dateEcheance: z.string().optional()
+  dateEcheance: z.string().optional(),
+  sprintId: z.string().optional().nullable(),
+  storyPoints: z.coerce.number().min(0, "Les Story Points ne peuvent pas etre negatifs").optional().nullable()
 });
 
 const formatDate = (dateEcheance) => {
@@ -231,9 +234,13 @@ const KanbanColumn = ({ status, colorConfig, tasks, isOwner, onTaskClick, onDele
 
 const ProjectDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuthStore();
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [statuses, setStatuses] = useState([]);
+  const [sprints, setSprints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
@@ -245,11 +252,10 @@ const ProjectDetail = () => {
   const [memberError, setMemberError] = useState("");
   const [taskError, setTaskError] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [viewMode, setViewMode] = useState("kanban");
+  const [viewMode, setViewMode] = useState(location.state?.viewMode || "kanban");
+  const [kanbanViewStyle, setKanbanViewStyle] = useState(location.state?.kanbanViewStyle || "cards"); // "cards" | "table"
   const [dependencies, setDependencies] = useState([]);
   const [selectedPredecessors, setSelectedPredecessors] = useState([]);
-  const navigate = useNavigate();
-  const { user } = useAuthStore();
   const isOwner = user?.email === project?.managerEmail || user?.username === project?.managerEmail;
   const isAdmin = user?.role === "ADMIN";
   const isProjectManager = members.some(m => (m.email === user?.email || m.username === user?.username) && m.projectRole === "MANAGER");
@@ -281,6 +287,10 @@ const ProjectDetail = () => {
         const sorted = (Array.isArray(statusRes.data) ? statusRes.data : []).slice().sort((a, b) => a.orderIndex - b.orderIndex);
         setStatuses(sorted);
       } catch (e) { setStatuses([]); }
+      try {
+        const sprintsRes = await api.get(`/v1/projects/${id}/sprints`);
+        setSprints(Array.isArray(sprintsRes.data) ? sprintsRes.data : []);
+      } catch (e) { setSprints([]); }
       try {
         const depRes = await api.get(`/v1/projects/${id}/dependencies`);
         setDependencies(Array.isArray(depRes.data) ? depRes.data : []);
@@ -317,22 +327,20 @@ const ProjectDetail = () => {
   };
 
   const openTaskModal = (task = null) => {
-    setTaskError("");
-    setSelectedTask(task);
     if (task) {
-      const isoDateDebut = task.dateDebut ? new Date(task.dateDebut).toISOString().split('T')[0] : "";
-      const isoDateEcheance = task.dateEcheance ? new Date(task.dateEcheance).toISOString().split('T')[0] : "";
-      reset({ title: task.title, description: task.description, assignTo: task.assignTo || "", workflowStatus: task.workflowStatus || (statuses[0]?.name || ""), taskType: task.taskType || "TASK", parentTaskName: task.parentTaskName || "", dateDebut: isoDateDebut, dateEcheance: isoDateEcheance });
-    } else {
-      reset({ title: "", description: "", assignTo: "", workflowStatus: statuses[0]?.name || "", taskType: "TASK", parentTaskName: "", dateDebut: "", dateEcheance: "" });
+      navigate(`/projects/${id}/tasks/${task.id}`, { state: { viewMode, kanbanViewStyle } });
+      return;
     }
+    
+    reset({ title: "", description: "", assignTo: "", workflowStatus: statuses[0]?.name || "", taskType: "TASK", parentTaskName: "", dateDebut: "", dateEcheance: "", sprintId: "", storyPoints: "" });
+    setSelectedTask(null);
     setIsTaskModalOpen(true);
   };
 
   const onTaskSubmit = async (data) => {
     try {
       setTaskError("");
-      const payload = { projectName: project.title, title: data.title, description: data.description, workflowStatus: data.workflowStatus || statuses[0]?.name || "", taskType: data.taskType || "TASK", parentTaskName: data.parentTaskName || "", assignTo: data.assignTo || "", dateDebut: data.dateDebut || null, dateEcheance: data.dateEcheance || null };
+      const payload = { projectName: project.title, title: data.title, description: data.description, workflowStatus: data.workflowStatus || statuses[0]?.name || "", taskType: data.taskType || "TASK", parentTaskName: data.parentTaskName || "", assignTo: data.assignTo || "", dateDebut: data.dateDebut || null, dateEcheance: data.dateEcheance || null, sprintId: data.sprintId || null, storyPoints: data.storyPoints || null };
       if (selectedTask) {
         await api.put(`/v1/task/${selectedTask.id}/${project.id}`, payload);
         const currentPredecessors = dependencies.filter(d => d.successorId === selectedTask.id).map(d => d.predecessorId);
@@ -510,6 +518,11 @@ const ProjectDetail = () => {
         workflowStatus: targetStatus.name
       };
       await api.put(`/v1/task/${taskId}/${project.id}`, payload);
+      // Si le statut cible est "final", le backend génère une submissionDate —
+      // on rafraîchit pour l'afficher immédiatement sur la carte.
+      if (targetStatus.completed) {
+        fetchProjectData();
+      }
     } catch (err) {
       console.error("Erreur mise à jour tâche", err);
       fetchProjectData(); // Revert on error
@@ -585,38 +598,212 @@ const ProjectDetail = () => {
 
       <div className="flex items-center gap-1 bg-[#121824]/60 border border-[#1f293d] p-1 rounded-xl w-fit mt-3 mb-8 shadow-sm">
         <button onClick={() => setViewMode("kanban")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === "kanban" ? "bg-primary-600 text-white shadow-md" : "text-slate-400 hover:text-slate-200"}`}><AlignLeft className="w-4 h-4" /> Tableau Kanban</button>
+        <button onClick={() => setViewMode("backlog")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === "backlog" ? "bg-primary-600 text-white shadow-md" : "text-slate-400 hover:text-slate-200"}`}><ListTodo className="w-4 h-4" /> Backlog & Sprints</button>
         <button onClick={() => setViewMode("gantt")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === "gantt" ? "bg-primary-600 text-white shadow-md" : "text-slate-400 hover:text-slate-200"}`}><Network className="w-4 h-4" /> Gantt &amp; Dependances</button>
       </div>
 
-      {viewMode === "gantt" ? (
-        <GanttView tasks={tasks} dependencies={dependencies} projectId={id} onTaskClick={openTaskModal} refreshData={fetchProjectData} />
+      {viewMode === "gantt" ? (() => {
+        const activeSprint = sprints.find(s => s.status === 'ACTIVE');
+        const plannedSprint = sprints.find(s => s.status === 'PLANNED');
+        const displaySprint = activeSprint || plannedSprint;
+        const ganttTasks = displaySprint
+          ? tasks.filter(t => String(t.sprintId) === String(displaySprint.id))
+          : tasks.filter(t => t.sprintId != null);
+
+        if (!activeSprint && !plannedSprint && tasks.filter(t => t.sprintId != null).length === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center py-20 gap-4 bg-[#121824]/30 border border-dashed border-[#1f293d] rounded-2xl text-center">
+              <Network className="w-10 h-10 text-slate-600" />
+              <div>
+                <p className="text-slate-300 font-semibold text-base mb-1">Aucun sprint actif</p>
+                <p className="text-slate-500 text-sm max-w-sm">
+                  Le Gantt affiche les tâches du sprint en cours. Créez un sprint et démarrez-le pour visualiser son avancement ici.
+                </p>
+              </div>
+              <button
+                onClick={() => setViewMode('backlog')}
+                className="mt-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-semibold rounded-xl transition-colors"
+              >
+                Aller au Backlog & Sprints
+              </button>
+            </div>
+          );
+        }
+
+        if (!activeSprint) {
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2.5 px-4 py-3 bg-amber-500/5 border border-amber-500/20 rounded-xl text-sm text-amber-300">
+                <Network className="w-4 h-4 shrink-0" />
+                <span>
+                  {plannedSprint
+                    ? `Aucun sprint actif — affichage du sprint planifié « ${plannedSprint.name} ».`
+                    : "Aucun sprint actif — affichage de toutes les tâches assignées à un sprint."}
+                  {" "}Démarrez un sprint depuis l'onglet <strong>Backlog & Sprints</strong> pour voir le Gantt actif.
+                </span>
+              </div>
+              <GanttView
+                tasks={ganttTasks}
+                dependencies={dependencies} projectId={id} onTaskClick={openTaskModal} refreshData={fetchProjectData} />
+            </div>
+          );
+        }
+
+        return (
+          <GanttView
+            tasks={ganttTasks}
+            dependencies={dependencies} projectId={id} onTaskClick={openTaskModal} refreshData={fetchProjectData} />
+        );
+      })() : viewMode === "backlog" ? (
+        <BacklogView projectId={id} tasks={tasks} sprints={sprints} statuses={statuses} refreshData={fetchProjectData} onTaskClick={openTaskModal} />
       ) : (
         <>
           {statuses.length === 0 ? (
-            <div className="text-center py-16 glass-card border-dashed border-[#1f293d] rounded-2xl">
-              <p className="text-slate-400 font-medium">Aucun statut de workflow trouve pour ce projet.</p>
-              <p className="text-slate-500 text-sm mt-1">Les statuts sont crees automatiquement a la creation du projet.</p>
+            <div className="text-center py-16 glass-card border-dashed border-[#1f293d] rounded-2xl w-full">
+              <p className="text-slate-400 font-medium">Aucun statut de workflow trouvé pour ce projet.</p>
+              <p className="text-slate-500 text-sm mt-1">Les statuts sont créés automatiquement à la création du projet.</p>
             </div>
           ) : (
-            <div className="flex gap-6 overflow-x-auto pb-4 w-full">
-              {statuses.map((status, index) => {
-                const color = getColorForIndex(index);
-                const columnTasks = tasks.filter(t => t.workflowStatus === status.name);
-                return (
-                  <div
-                    key={status.id}
-                    draggable={canEdit}
-                    onDragStart={(e) => onDragStart(e, index)}
-                    onDragEnd={() => setDraggedStatusIndex(null)}
-                    onDragOver={onDragOver}
-                    onDrop={(e) => onDrop(e, index)}
-                    className={`transition-opacity ${draggedStatusIndex === index ? "opacity-40 cursor-grabbing" : "opacity-100 cursor-grab"} group flex-1 min-w-[280px] max-w-[400px]`}
+            <>
+              {/* Toggle Cartes / Tableau */}
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-1 bg-[#121824]/60 border border-[#1f293d] p-1 rounded-xl shadow-sm">
+                  <button
+                    onClick={() => setKanbanViewStyle("cards")}
+                    title="Vue Cartes"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${kanbanViewStyle === "cards" ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-slate-200"}`}
                   >
-                    <KanbanColumn status={status} colorConfig={color} tasks={columnTasks} isOwner={isOwner} canEdit={canEdit} canDeleteTask={canDeleteTask} onTaskClick={openTaskModal} onDeleteTask={onDeleteTask} onRenameStatus={onRenameStatus} onDeleteStatus={requestDeleteStatus} onDropTask={onDropTask} />
-                  </div>
-                );
-              })}
-            </div>
+                    <AlignLeft className="w-3.5 h-3.5" /> Cartes
+                  </button>
+                  <button
+                    onClick={() => setKanbanViewStyle("table")}
+                    title="Vue Tableau"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${kanbanViewStyle === "table" ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-slate-200"}`}
+                  >
+                    <ListTodo className="w-3.5 h-3.5" /> Tableau
+                  </button>
+                </div>
+                <span className="text-xs text-slate-500">{tasks.length} tâche{tasks.length !== 1 ? 's' : ''}</span>
+              </div>
+
+              {kanbanViewStyle === "cards" ? (
+                /* Vue Cartes (Kanban classique) */
+                <div className="flex gap-6 overflow-x-auto pb-4 w-full">
+                  {statuses.map((status, index) => {
+                    const color = getColorForIndex(index);
+                    const columnTasks = tasks.filter(t => t.workflowStatus === status.name);
+                    return (
+                      <div
+                        key={status.id}
+                        draggable={canEdit}
+                        onDragStart={(e) => onDragStart(e, index)}
+                        onDragEnd={() => setDraggedStatusIndex(null)}
+                        onDragOver={onDragOver}
+                        onDrop={(e) => onDrop(e, index)}
+                        className={`transition-opacity ${draggedStatusIndex === index ? "opacity-40 cursor-grabbing" : "opacity-100 cursor-grab"} group flex-1 min-w-[280px] max-w-[400px]`}
+                      >
+                        <KanbanColumn status={status} colorConfig={color} tasks={columnTasks} isOwner={isOwner} canEdit={canEdit} canDeleteTask={canDeleteTask} onTaskClick={openTaskModal} onDeleteTask={onDeleteTask} onRenameStatus={onRenameStatus} onDeleteStatus={requestDeleteStatus} onDropTask={onDropTask} />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Vue Tableau compacte */
+                <div className="bg-[#121824]/30 border border-[#1f293d] rounded-2xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#1f293d] bg-[#121824]/60">
+                        <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Titre</th>
+                        <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Type</th>
+                        <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Statut</th>
+                        <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Assigné à</th>
+                        <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Échéance</th>
+                        <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tasks.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="text-center py-10 text-slate-500 text-sm">Aucune tâche dans ce projet.</td>
+                        </tr>
+                      ) : (
+                        tasks.map((task, idx) => {
+                          const taskStatus = statuses.find(s => s.name === task.workflowStatus);
+                          const statusColorIdx = statuses.findIndex(s => s.name === task.workflowStatus);
+                          const color = getColorForIndex(statusColorIdx >= 0 ? statusColorIdx : 0);
+                          const overdue = isOverdue(task.dateEcheance, taskStatus?.completed);
+                          return (
+                            <tr
+                              key={task.id}
+                              onClick={() => openTaskModal(task)}
+                              className={`border-b border-[#1f293d]/60 hover:bg-[#1f293d]/40 transition-colors cursor-pointer ${idx % 2 === 0 ? '' : 'bg-[#121824]/20'}`}
+                            >
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-1 h-8 rounded-full shrink-0 ${color.border.replace('border-l-', 'bg-')}`} />
+                                  <div>
+                                    <p className="font-semibold text-slate-200 text-sm leading-tight">{task.title}</p>
+                                    {task.parentTaskName && <p className="text-[10px] text-slate-500 mt-0.5">↳ {task.parentTaskName}</p>}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <TaskTypeBadge type={task.taskType} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <select
+                                  value={task.workflowStatus || ''}
+                                  onClick={e => e.stopPropagation()}
+                                  onChange={async (e) => {
+                                    const newStatus = statuses.find(s => s.name === e.target.value);
+                                    if (newStatus) await onDropTask(task.id, newStatus);
+                                  }}
+                                  className={`text-xs font-semibold px-2.5 py-1 rounded-lg border bg-transparent cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary-500/50 ${color.badge}`}
+                                >
+                                  {statuses.map(s => (
+                                    <option key={s.id} value={s.name} className="bg-[#121824] text-slate-200">{s.name}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="px-4 py-3">
+                                {task.assignTo ? (
+                                  <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                                    <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span className="truncate max-w-[120px]">{task.assignTo.split('@')[0]}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-600 text-xs italic">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                {taskStatus?.completed && task.submissionDate ? (
+                                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-900/20 border border-emerald-500/30 px-2 py-0.5 rounded-md">
+                                    ✓ {formatDate(task.submissionDate)}
+                                  </span>
+                                ) : task.dateEcheance ? (
+                                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${overdue ? 'text-rose-300 bg-rose-900/30 border border-rose-500/40' : 'text-slate-400 bg-slate-800/80 border border-slate-700'}`}>
+                                    {overdue && '⚠ '}{formatDate(task.dateEcheance)}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-600 text-xs italic">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                                {canDeleteTask && (
+                                  <button onClick={() => onDeleteTask(task.id)} className="text-slate-500 hover:text-rose-400 transition-colors p-1 rounded-lg hover:bg-rose-500/10" title="Supprimer">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -674,57 +861,51 @@ const ProjectDetail = () => {
 
       {isTaskModalOpen && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#0f172a] border border-[#1f293d] rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
+          <div className="bg-[#0f172a] border border-[#1f293d] rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-fade-in">
+            {/* Header */}
             <div className="px-6 py-4 border-b border-[#1f293d] flex justify-between items-center bg-[#121824]/50 shrink-0">
               <h2 className="text-lg font-bold text-white">{selectedTask ? "Modifier la Tache" : "Nouvelle Tache"}</h2>
               <button onClick={() => setIsTaskModalOpen(false)} className="text-slate-400 hover:text-white text-xl">x</button>
             </div>
-            <div className="overflow-y-auto flex-1 custom-scrollbar">
-              <form onSubmit={handleSubmit(onTaskSubmit)} className="p-6 space-y-4">
-                {taskError && (<div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-start gap-2"><AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" /><span>{taskError}</span></div>)}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Statut</label>
-                  <select {...register("workflowStatus")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
-                    {getSelectableStatuses(selectedTask).map(s => (<option key={s.id} value={s.name}>{s.name}</option>))}
-                  </select>
-                </div>
-                {selectedTask && selectedTask.submissionDate && (
-                  <div className="bg-[#121824]/40 p-3.5 rounded-xl border border-[#1f293d] text-xs space-y-1.5">
-                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Informations de livraison</span>
-                    <div className="flex justify-between items-center font-semibold text-slate-300">
-                      <span>Date de remise :</span>
-                      <span className={isSubmissionLate(selectedTask.submissionDate, selectedTask.dateEcheance) ? "text-rose-400 font-bold" : "text-emerald-400 font-bold"}>
-                        {formatDate(selectedTask.submissionDate)}
-                        {isSubmissionLate(selectedTask.submissionDate, selectedTask.dateEcheance) && " (En retard)"}
-                      </span>
-                    </div>
-                  </div>
-                )}
+
+            {/* Form — no scroll needed thanks to 2-col layout */}
+            <form onSubmit={handleSubmit(onTaskSubmit)} className="p-6">
+              {taskError && (<div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-start gap-2"><AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" /><span>{taskError}</span></div>)}
+
+              {/* Ligne 1 : Titre (pleine largeur) */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Titre de la tache</label>
+                <input {...register("title")} className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.title ? "border-rose-500" : "border-[#1f293d]"}`} placeholder="Ex: Refonte du bouton de connexion" />
+                {errors.title && <p className="text-rose-400 text-xs mt-1">{errors.title.message}</p>}
+              </div>
+
+              {/* Ligne 2 : Type + Statut */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Type de tache</label>
                   <select {...register("taskType")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
                     <option value="TASK">Task</option><option value="EPIC">Epic</option><option value="STORY">Story</option><option value="SUBTASK">Subtask</option>
                   </select>
                 </div>
-                {watch("taskType") !== "EPIC" && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Statut</label>
+                  <select {...register("workflowStatus")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
+                    {getSelectableStatuses(selectedTask).map(s => (<option key={s.id} value={s.name}>{s.name}</option>))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Ligne 3 : Tache parente + Assigné */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                {watch("taskType") !== "EPIC" ? (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Tache parente (optionnel)</label>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Tache parente <span className="text-slate-500 font-normal">- Optionnel</span></label>
                     <select {...register("parentTaskName")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
                       <option value="">-- Aucune --</option>
                       {tasks.filter(t => (!selectedTask || t.id !== selectedTask.id)).map(t => (<option key={t.id} value={t.title}>{t.title} ({t.taskType || "TASK"})</option>))}
                     </select>
                   </div>
-                )}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Titre de la tache</label>
-                  <input {...register("title")} className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.title ? "border-rose-500" : "border-[#1f293d]"}`} placeholder="Ex: Refonte du bouton de connexion" />
-                  {errors.title && <p className="text-rose-400 text-xs mt-1">{errors.title.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Description</label>
-                  <textarea {...register("description")} rows={3} placeholder="Expliquez brievement la tache..." className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.description ? "border-rose-500" : "border-[#1f293d]"}`} />
-                  {errors.description && <p className="text-rose-400 text-xs mt-1">{errors.description.message}</p>}
-                </div>
+                ) : <div />}
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Assigner a <span className="text-slate-500 font-normal">- Optionnel</span></label>
                   {memberEmails.length > 0 ? (
@@ -733,71 +914,88 @@ const ProjectDetail = () => {
                       {memberEmails.map(email => (<option key={email} value={email}>{email}</option>))}
                     </select>
                   ) : (
-                    <div className="text-xs text-slate-500 italic px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl">Aucun membre disponible - ajoutez d abord des membres au projet.</div>
+                    <div className="text-xs text-slate-500 italic px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl">Aucun membre disponible.</div>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5"><span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />Date de debut</span></label>
-                    <input type="date" {...register("dateDebut")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5"><span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />Date d echeance</span></label>
-                    <input type="date" {...register("dateEcheance")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm" />
-                  </div>
+              </div>
+
+              {/* Ligne 4 : Sprint + Story Points */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Sprint <span className="text-slate-500 font-normal">- Optionnel</span></label>
+                  <select {...register("sprintId")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm">
+                    <option value="">-- Aucun -- (Backlog)</option>
+                    {sprints.map(s => (<option key={s.id} value={s.id}>{s.name} ({s.status})</option>))}
+                  </select>
                 </div>
-                {selectedTask && tasks.length > 1 && (
-                  <div className="bg-[#121824]/40 p-4 rounded-xl border border-[#1f293d]">
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-2"><Network className="w-4 h-4 text-primary-400" /> Dependances (Taches Prealables)</label>
-                    <p className="text-[11px] text-slate-500 mb-3">Selectionnez les taches qui doivent etre terminees avant celle-ci.</p>
-                    <div className="max-h-32 overflow-y-auto space-y-2 custom-scrollbar pr-2">
-                      {tasks.filter(t => t.id !== selectedTask.id).map(t => (
-                        <label key={t.id} className="flex items-start gap-2.5 cursor-pointer group">
-                          <input type="checkbox" className="mt-1 rounded border-slate-700 bg-slate-900 text-primary-600 focus:ring-primary-500" checked={selectedPredecessors.includes(t.id)}
-                            onChange={(e) => { if (e.target.checked) { setSelectedPredecessors([...selectedPredecessors, t.id]); } else { setSelectedPredecessors(selectedPredecessors.filter(pid => pid !== t.id)); } }} />
-                          <div>
-                            <p className="text-sm font-semibold text-slate-300 group-hover:text-primary-400 transition-colors">{t.title}</p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="flex justify-end gap-3 pt-3 border-t border-[#1f293d]/50">
-                  <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-400 font-semibold hover:bg-slate-800/50 rounded-xl transition-colors text-sm">Annuler</button>
-                  <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 text-sm shadow-md">
-                    {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {selectedTask ? "Mettre a jour" : "Creer la tache"}
-                  </button>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Story Points <span className="text-slate-500 font-normal">- Optionnel</span></label>
+                  <input type="number" {...register("storyPoints")} className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.storyPoints ? "border-rose-500" : "border-[#1f293d]"}`} placeholder="Ex: 5" />
+                  {errors.storyPoints && <p className="text-rose-400 text-xs mt-1">{errors.storyPoints.message}</p>}
                 </div>
-              </form>
-              {selectedTask && (
-                <div className="px-6 pb-4 pt-4 border-t border-[#1f293d]">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2"><Paperclip className="w-4 h-4 text-primary-400" /> Piece jointe</h3>
-                  {selectedTask.attachmentUrl ? (
-                    <div className="flex items-center justify-between bg-[#121824]/40 p-3 rounded-xl border border-[#1f293d]">
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="p-2.5 bg-primary-500/10 text-primary-400 rounded-lg"><Paperclip className="w-5 h-5" /></div>
-                        <span className="text-sm font-medium text-slate-300 truncate">{selectedTask.attachmentUrl.split("/").pop()}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                        <a href={`http://localhost:9000/uploads/${selectedTask.attachmentUrl}`} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors"><Download className="w-4 h-4" /></a>
-                        <label className="p-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer">{uploadingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}<input type="file" className="hidden" onChange={handleFileUpload} disabled={uploadingFile} /></label>
-                        <button type="button" onClick={handleFileDelete} disabled={uploadingFile} className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex justify-center border border-dashed border-[#1f293d] hover:border-slate-700 bg-[#121824]/20 hover:bg-[#121824]/40 rounded-xl p-6 transition-colors">
-                      <label className="flex flex-col items-center gap-2 cursor-pointer w-full">
-                        {uploadingFile ? <Loader2 className="w-6 h-6 animate-spin text-primary-500" /> : (<><div className="p-2.5 bg-primary-500/10 text-primary-400 rounded-xl"><Upload className="w-6 h-6" /></div><span className="text-xs font-semibold text-slate-300">Cliquez pour ajouter un fichier</span><span className="text-[10px] text-slate-500">PDF, Images, etc. (max 10MB)</span></>)}
-                        <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploadingFile} />
-                      </label>
-                    </div>
-                  )}
+              </div>
+
+              {/* Ligne 5 : Dates début + échéance */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5"><span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />Date de debut</span></label>
+                  <input type="date" {...register("dateDebut")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5"><span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />Date d echeance</span></label>
+                  <input type="date" {...register("dateEcheance")} className="w-full px-3.5 py-2 bg-[#121824] border border-[#1f293d] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm" />
+                </div>
+              </div>
+
+              {/* Ligne 6 : Description (pleine largeur) */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Description</label>
+                <textarea {...register("description")} rows={3} placeholder="Expliquez brievement la tache..." className={`w-full px-3.5 py-2 bg-[#121824] border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-200 text-sm placeholder-slate-600 ${errors.description ? "border-rose-500" : "border-[#1f293d]"}`} />
+                {errors.description && <p className="text-rose-400 text-xs mt-1">{errors.description.message}</p>}
+              </div>
+
+              {/* Date de soumission (mode édition uniquement) */}
+              {selectedTask && selectedTask.submissionDate && (
+                <div className="mb-4 bg-[#121824]/40 p-3.5 rounded-xl border border-[#1f293d] text-xs space-y-1.5">
+                  <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Informations de livraison</span>
+                  <div className="flex justify-between items-center font-semibold text-slate-300">
+                    <span>Date de remise :</span>
+                    <span className={isSubmissionLate(selectedTask.submissionDate, selectedTask.dateEcheance) ? "text-rose-400 font-bold" : "text-emerald-400 font-bold"}>
+                      {formatDate(selectedTask.submissionDate)}
+                      {isSubmissionLate(selectedTask.submissionDate, selectedTask.dateEcheance) && " (En retard)"}
+                    </span>
+                  </div>
                 </div>
               )}
-              {selectedTask && (<div className="px-6 pb-6 pt-2 border-t border-[#1f293d]/50"><TaskComments taskId={selectedTask.id} /></div>)}
-            </div>
+
+              {/* Dépendances (mode édition, 2+ tâches) */}
+              {selectedTask && tasks.length > 1 && (
+                <div className="mb-4 bg-[#121824]/40 p-4 rounded-xl border border-[#1f293d]">
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-2"><Network className="w-4 h-4 text-primary-400" /> Dependances (Taches Prealables)</label>
+                  <p className="text-[11px] text-slate-500 mb-3">Selectionnez les taches qui doivent etre terminees avant celle-ci.</p>
+                  <div className="max-h-32 overflow-y-auto space-y-2 custom-scrollbar pr-2">
+                    {tasks.filter(t => t.id !== selectedTask.id).map(t => (
+                      <label key={t.id} className="flex items-start gap-2.5 cursor-pointer group">
+                        <input type="checkbox" className="mt-1 rounded border-slate-700 bg-slate-900 text-primary-600 focus:ring-primary-500" checked={selectedPredecessors.includes(t.id)}
+                          onChange={(e) => { if (e.target.checked) { setSelectedPredecessors([...selectedPredecessors, t.id]); } else { setSelectedPredecessors(selectedPredecessors.filter(pid => pid !== t.id)); } }} />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-300 group-hover:text-primary-400 transition-colors">{t.title}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-3 border-t border-[#1f293d]/50">
+                <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-400 font-semibold hover:bg-slate-800/50 rounded-xl transition-colors text-sm">Annuler</button>
+                <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 text-sm shadow-md">
+                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {selectedTask ? "Mettre a jour" : "Creer la tache"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
